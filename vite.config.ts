@@ -7,6 +7,7 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: true,
+    chunkSizeWarningLimit: 800,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -16,6 +17,7 @@ export default defineConfig({
             '@codemirror/commands',
             '@codemirror/language',
             '@codemirror/lang-markdown',
+            '@lezer/highlight',
           ],
         },
       },

@@ -1,1 +1,29 @@
-/* CodeMirror 6 theme overrides — populated in Phase 1. */
+/*
+ * CodeMirror 6 visual overrides applied alongside the inline theme defined
+ * in src/core/editor-setup.ts. The inline theme handles the active surface
+ * (font, padding, caret, selection); these rules cover scrollbar styling
+ * and fallback defaults that travel with the global stylesheet.
+ */
+
+.cm-editor.cm-focused {
+  outline: none;
+}
+
+.cm-editor .cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.cm-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-1);
+}
+
+.cm-editor .cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cm-editor .cm-line {
+  padding-left: 0;
+  padding-right: 0;
+}
