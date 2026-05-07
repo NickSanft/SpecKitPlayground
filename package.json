@@ -1,0 +1,69 @@
+{
+  "name": "speckitplayground",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Browser-based editor for drafting GitHub Spec Kit artifacts. No CLI required.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "size": "size-limit",
+    "sync-templates": "tsx scripts/sync-templates.ts",
+    "preflight": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build && npm run size"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.6.2",
+    "@codemirror/lang-markdown": "^6.3.0",
+    "@codemirror/language": "^6.10.3",
+    "@codemirror/state": "^6.4.1",
+    "@codemirror/view": "^6.34.1",
+    "@preact/signals": "^1.3.0",
+    "idb-keyval": "^6.2.1",
+    "jszip": "^3.10.1",
+    "markdown-it": "^14.1.0",
+    "preact": "^10.24.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.12.0",
+    "@playwright/test": "^1.48.0",
+    "@preact/preset-vite": "^2.9.1",
+    "@size-limit/preset-app": "^11.1.6",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^22.7.5",
+    "@typescript-eslint/eslint-plugin": "^8.8.1",
+    "@typescript-eslint/parser": "^8.8.1",
+    "eslint": "^9.12.0",
+    "jsdom": "^25.0.1",
+    "prettier": "^3.3.3",
+    "size-limit": "^11.1.6",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.2"
+  },
+  "size-limit": [
+    {
+      "name": "App bundle (gzipped)",
+      "path": "dist/assets/*.js",
+      "limit": "200 KB"
+    },
+    {
+      "name": "App CSS (gzipped)",
+      "path": "dist/assets/*.css",
+      "limit": "20 KB"
+    }
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

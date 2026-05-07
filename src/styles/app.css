@@ -1,0 +1,59 @@
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.app-shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.app-title {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.app-tagline {
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+}
+
+.app-main {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr 1fr;
+  min-height: 0;
+}
+
+.pane {
+  padding: var(--space-4);
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+}
+
+.pane-sidebar {
+  border-right: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.pane-editor {
+  border-right: 1px solid var(--border);
+}
+
+.pane-preview {
+  background: var(--bg-elevated);
+}
