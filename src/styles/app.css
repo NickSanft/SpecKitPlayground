@@ -300,6 +300,140 @@ body {
   border: 1px solid rgba(185, 28, 28, 0.4);
 }
 
+/* Lint button + panel */
+
+.header-lint {
+  position: relative;
+  font-size: 0.8125rem;
+  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.lint-pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  border-radius: 999px;
+  color: white;
+}
+
+.lint-pip-info {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.lint-pip-warning {
+  background: var(--warning);
+  color: white;
+}
+
+.lint-pip-error {
+  background: var(--danger);
+  color: white;
+}
+
+.lint-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.lint-row + .lint-row {
+  border-top: 1px solid var(--border);
+}
+
+.lint-row-button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3);
+  background: transparent;
+  text-align: left;
+}
+
+.lint-row-button:hover {
+  background: var(--bg-subtle);
+}
+
+.lint-badge {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: var(--radius-1);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.lint-badge-info {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.lint-badge-warning {
+  background: rgba(180, 83, 9, 0.12);
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.lint-badge-error {
+  background: rgba(185, 28, 28, 0.1);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.lint-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lint-row-message {
+  font-size: 0.875rem;
+  color: var(--fg);
+  line-height: 1.4;
+}
+
+.lint-row-target {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+}
+
+.lint-row-rule {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--fg-subtle);
+  align-self: flex-start;
+  white-space: nowrap;
+}
+
+.lint-empty {
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+  padding: var(--space-4);
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-2);
+}
+
 /* Theme toggle + help icon button (share visual treatment) */
 
 .theme-toggle {

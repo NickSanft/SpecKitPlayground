@@ -290,6 +290,45 @@ test('Cmd/Ctrl+B toggles the sidebar', async ({ page }, testInfo) => {
   await expect(sidebar).toBeVisible();
 });
 
+test('lint panel surfaces diagnostics and clicking one navigates to the doc', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+  page.on('dialog', (dialog) => dialog.accept());
+
+  // Add a feature without editing it — should trip "feature-untouched"
+  await page.getByRole('button', { name: '+ Add feature' }).click();
+  await page.locator('.modal-input').fill('Lint Bait');
+  await page.getByRole('button', { name: 'Create' }).click();
+
+  // Open lint panel
+  await page.getByRole('button', { name: /Open lint panel/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Workspace lint' });
+  await dialog.waitFor();
+
+  // Constitution-not-default + feature-untouched should both be present
+  await expect(dialog).toContainText('Constitution is still the unedited template');
+  await expect(dialog).toContainText('Feature "Lint Bait" has no content yet');
+
+  // Click the feature-untouched diagnostic and confirm we navigate to its spec
+  await dialog.getByText('Feature "Lint Bait" has no content yet').click();
+  await expect(page.locator('.tree-leaf.is-active')).toContainText('spec.md');
+  await expect(dialog).not.toBeVisible();
+});
+
+test('lint panel reports "No issues found" once everything is filled in', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+
+  // Edit constitution to satisfy both rules (>=3 ### headings, no template content)
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Control+A');
+  await page.keyboard.press('Delete');
+  await page.keyboard.type('# Edited\n\n### One\n### Two\n### Three\n\nGovernance prose.');
+
+  await page.getByRole('button', { name: /Open lint panel/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Workspace lint' });
+  await dialog.waitFor();
+  await expect(dialog).toContainText('No issues found');
+});
+
 test('raw HTML pasted into the editor is escaped, not rendered', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
   const editor = page.locator('.cm-content');

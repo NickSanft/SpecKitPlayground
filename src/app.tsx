@@ -4,6 +4,8 @@ import { Editor } from './components/Editor';
 import { ExportModal } from './components/ExportModal';
 import { FirstRunBanner } from './components/FirstRunBanner';
 import { HelpModal } from './components/HelpModal';
+import { LintButton } from './components/LintButton';
+import { LintPanel } from './components/LintPanel';
 import { MobileTabBar } from './components/MobileTabBar';
 import { NewFeatureModal } from './components/NewFeatureModal';
 import { Preview } from './components/Preview';
@@ -36,12 +38,14 @@ export function App() {
   const [newFeatureOpen, setNewFeatureOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [lintOpen, setLintOpen] = useState(false);
 
   const workspace = workspaceSignal.value;
   const docKey = activeDocKey(workspace.activeDocId);
   const openNewFeature = () => setNewFeatureOpen(true);
   const openExport = () => setExportOpen(true);
   const openHelp = () => setHelpOpen(true);
+  const openLint = () => setLintOpen(true);
 
   const shortcuts: ShortcutBinding[] = [
     {
@@ -69,6 +73,11 @@ export function App() {
       description: 'Show this help',
       run: openHelp,
     },
+    {
+      match: { key: 'l', cmdOrCtrl: true, shift: true },
+      description: 'Open lint panel',
+      run: openLint,
+    },
   ];
 
   useEffect(() => {
@@ -92,6 +101,7 @@ export function App() {
           {activeDocLabel.value}
         </span>
         <SaveStatus />
+        <LintButton onOpen={openLint} />
         <button
           type="button"
           class="btn btn-secondary header-export"
@@ -136,6 +146,7 @@ export function App() {
       )}
       {exportOpen && <ExportModal workspace={workspace} onClose={() => setExportOpen(false)} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} shortcuts={shortcuts} />}
+      {lintOpen && <LintPanel onClose={() => setLintOpen(false)} />}
     </div>
   );
 }

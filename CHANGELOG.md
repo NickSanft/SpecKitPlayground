@@ -6,6 +6,59 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [0.6.0] - 2026-05-08 — Phase 6: Lint panel (stretch)
+
+### Added
+- **Pluggable rule interface** in `src/core/lint.ts`:
+  ```ts
+  interface Rule {
+    id: string;
+    description: string;
+    check: (workspace: Workspace) => Diagnostic[];
+  }
+  ```
+  Rules return `Diagnostic[]` — each carries an `ActiveDocId` `target` so the panel can navigate to the offending doc on click. `lintWorkspace(ws)` runs every rule and concatenates results in registration order; `diagnosticCounts(ds)` totals by severity for the header pip.
+- **Six initial rules**:
+  1. `constitution-not-default` — warns if the constitution is still the unedited template
+  2. `constitution-principles-count` — warns if an edited constitution has fewer than 3 `### ` headings
+  3. `placeholders-remain` — info when `[UPPERCASE_TOKEN]`-style placeholders survive an edit (skips Markdown link syntax `[lowercase]`)
+  4. `needs-clarification` — warns whenever any doc still contains `[NEEDS CLARIFICATION ...]`
+  5. `tasks-has-checkboxes` — info if an edited `tasks.md` has no `- [ ]` checklist items
+  6. `feature-untouched` — info per feature whose spec/plan/tasks are all the unedited template
+- **`LintPanel.tsx`** — modal listing every diagnostic with a colored severity badge, the human message, the target doc, and the rule id. Clicking a row commits a `setActiveDoc` for the target and closes the panel. Empty state: "No issues found."
+- **`LintButton.tsx`** in the header — opens the panel; shows a colored pip with the diagnostic count when non-zero (worst severity wins: error > warning > info).
+- **Keyboard shortcut**: `⌘⇧L` opens the lint panel. Listed in the help modal alongside the others.
+
+### Why it matters
+The validation panel turns the playground from a passive editor into an active reviewer — surface "you forgot to fill in the constitution," "this feature has no checklist yet," or "[NEEDS CLARIFICATION] markers are still in your spec" without the user having to read every doc. Rules being pluggable means future phases can add project-specific checks (e.g. plan/spec consistency, library mention cross-references) by appending to the rule list.
+
+### Architecture
+- The diagnostics signal is a `computed(() => lintWorkspace(workspaceSignal.value))` so the pip count and modal contents stay in sync with the store automatically — no explicit re-lint on edit needed.
+- Each rule is self-contained: it receives the whole workspace, decides what to look at, and returns its own diagnostics. No rule registry boilerplate beyond the `rules: readonly Rule[]` array.
+- Heuristics over precision: `placeholders-remain` matches a simple `\[A-Z][A-Z0-9_ ]+\]` regex which catches the upstream tokens but ignores ordinary Markdown link syntax. `tasks-has-checkboxes` accepts either `- [ ]` or `- [x]`.
+
+### UX details
+- Severity badge palette mirrors existing tokens: info uses `accent-soft`/`accent`, warning uses `warning`, error uses `danger`. The lint pip on the header button picks the worst severity present.
+- Each diagnostic row is one button (the whole row), not a button-inside-a-row, so it's keyboard-friendly and works with `getByText` in tests.
+- The panel uses the same wide-modal styling as the export modal — visual consistency.
+
+### Tests
+- Unit (Vitest, **106 passed**, +18): every rule has dedicated tests for the trigger and at least one no-trigger case; the registry is asserted to have unique ids; `lintWorkspace` asserted to return diagnostics in rule order; an end-to-end "fully clean workspace produces no diagnostics" test pins the no-false-positives invariant.
+- e2e (Playwright, **17 passed**, +2): adding an empty feature surfaces both `constitution-not-default` and `feature-untouched`; clicking the latter navigates to its `spec.md` and closes the panel; a fully-edited workspace shows "No issues found".
+
+### Bundle
+- App JS: **234.7 KB brotli** (limit: 350 KB) — +1.0 KB for the lint module + UI.
+- App CSS: **3.36 KB brotli** (limit: 20 KB) — +0.3 KB for badge palette and panel layout.
+
+### Pre-push checklist
+- `tsc --noEmit` ✓
+- `eslint .` ✓
+- `prettier --check .` ✓
+- `vitest run` (106 passed) ✓
+- `vite build` ✓
+- `size-limit` (234.7 KB / 350 KB) ✓
+- `playwright test` (17 passed) ✓
+
 ## [0.5.0] - 2026-05-08 — Phase 5: Polish
 
 ### Added
