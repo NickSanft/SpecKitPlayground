@@ -6,6 +6,56 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [0.4.0] - 2026-05-08 — Phase 4: Export
+
+### Added
+- `src/core/export.ts` — pure tree builder + JSZip assembler. `buildExportTree(workspace, options)` returns an ordered list of `{path, content}` representing every file in the export. `buildZip(...)` calls the tree builder and feeds it to JSZip. The pure split makes the export shape unit-testable without ever generating a real zip.
+- Output structure matches Spec Kit conventions exactly:
+  - `.specify/memory/constitution.md`
+  - `.specify/specs/NNN-slug/{spec,plan,tasks}.md` for each (non-empty) feature
+  - `.specify/templates/{spec,plan,tasks}-template.md` (toggle, default on) — note the upstream `*-template.md` naming is restored on export, even though we keep them as bare names internally
+  - top-level `README.md` explaining how to drop the bundle into a project
+- Two export options:
+  - **Include templates folder** (default on)
+  - **Include empty features** (default off — features whose spec/plan/tasks all still match the templates are skipped)
+- File-tree preview in the modal, regenerated reactively as the toggles change. Directories sort before files; sorted alphabetically within each level.
+- `triggerBlobDownload(blob, filename)` and `downloadDocAsMarkdown(filename, content)` use the blob+anchor pattern (no File System Access API, so Firefox/Safari work).
+- `workspaceFilename(workspace)` slugifies the workspace name for the zip filename, with a generic fallback for unhelpful names.
+- All file content runs through `endsWithNewline()` — guarantees a trailing LF, never CRLF (matches the Phase 4 acceptance criteria).
+- `src/components/ExportModal.tsx` — wide modal with the two toggles, the live tree preview, and a download button that switches to "Building…" while the zip is generated.
+- `src/components/DocActions.tsx` — small toolbar above the editor with **Copy** and **Download .md** for the active document. Copy uses `navigator.clipboard.writeText` and shows transient "Copied" / "Copy failed" feedback; Download generates a per-doc filename like `001-user-auth-spec.md` so files don't collide when saved together.
+- Header **Export** button opens the modal.
+
+### Why it matters
+This is the egress that turns the playground from "draft tool" into "useful artifact producer". A user can now type up a constitution, spec out a feature or two, hit Export, drop the zip into a real repo, and continue with the actual `specify` CLI / agent integration of their choice.
+
+### Architecture
+- Two layers: pure (`buildExportTree`, `buildFileTreeView`, `workspaceFilename`) and IO (`buildZip`, `triggerBlobDownload`, `downloadDocAsMarkdown`). The pure layer carries 14 of the 15 export tests; the IO layer is exercised end-to-end by Playwright via `page.waitForEvent('download')`.
+- "Empty feature" detection is content-based: `spec.content === templates.spec && plan.content === templates.plan && tasks.content === templates.tasks`. No dirty flags to maintain — the comparison is the source of truth.
+- The templates folder always emits the upstream content, never the user's edits — so an exported `.specify/templates/spec-template.md` matches a fresh `specify init` exactly.
+
+### UX details
+- Clicking the Export button is one click to a tree preview, not two. The toggles let the user shape the bundle before committing to the download.
+- Per-doc copy gives a 1.5s "Copied" pulse; per-doc download generates a `NNN-slug-doc.md` filename so multiple downloaded docs sort and identify cleanly.
+- The export modal's filename hint shows `my-project.zip` so the user knows what they're getting before they click.
+
+### Tests
+- Unit (Vitest, **85 passed**, +15): full export suite — constitution + README always present, empty-feature filtering, includeTemplates toggle, NNN-slug naming with zero-padding, gap preservation after deletion, every file ends with LF, no CRLF anywhere, multi-doc isolation, template-folder content isolation from user edits, file-tree builder shape, filename slugification with fallback.
+- e2e (Playwright, **12 passed**, +3): export modal previews the tree (and reacts to toggling templates off); zip download fires with the slug filename; per-doc Copy writes the active document to the clipboard (verified via `navigator.clipboard.readText` in `page.evaluate`); per-doc Download .md downloads `constitution.md`.
+
+### Bundle
+- App JS: **232.2 KB brotli** (limit: 350 KB) — +28 KB for JSZip + export code, exactly within the budget headroom we allocated when bumping to 350 KB at Phase 1.
+- App CSS: 2.62 KB brotli (limit: 20 KB).
+
+### Pre-push checklist
+- `tsc --noEmit` ✓
+- `eslint .` ✓
+- `prettier --check .` ✓
+- `vitest run` (85 passed) ✓
+- `vite build` ✓
+- `size-limit` (232.2 KB / 350 KB) ✓
+- `playwright test` (12 passed) ✓
+
 ## [0.3.0] - 2026-05-08 — Phase 3: Persistence
 
 ### Added

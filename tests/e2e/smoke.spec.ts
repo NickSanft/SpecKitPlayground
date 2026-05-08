@@ -161,6 +161,75 @@ test('reset clears the workspace and seeds a fresh constitution', async ({ page 
   await expect(page.locator('.tree-feature-dir')).toHaveCount(0);
 });
 
+test('export modal previews the file tree and downloads a zip', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+
+  // Add a feature with an edit so it isn't filtered as empty
+  await page.getByRole('button', { name: '+ Add feature' }).click();
+  await page.locator('.modal-input').fill('Export Target');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Control+A');
+  await page.keyboard.press('Delete');
+  await page.keyboard.type('# Edited spec');
+
+  await page.getByRole('button', { name: 'Export workspace' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export workspace' });
+  await dialog.waitFor();
+
+  // File tree shows the expected leaves
+  const treeText = await dialog.locator('.export-tree-list').first().textContent();
+  expect(treeText).toContain('.specify');
+  expect(treeText).toContain('memory');
+  expect(treeText).toContain('constitution.md');
+  expect(treeText).toContain('001-export-target');
+  expect(treeText).toContain('spec.md');
+  expect(treeText).toContain('templates');
+  expect(treeText).toContain('README.md');
+
+  // Toggling templates off updates the tree
+  await dialog.getByText('Include templates folder').click();
+  const treeAfter = await dialog.locator('.export-tree-list').first().textContent();
+  expect(treeAfter).not.toContain('templates');
+
+  // Download
+  const downloadPromise = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: /Download \.zip/ }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('my-project.zip');
+});
+
+test('per-doc Copy button writes the active document to the clipboard', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/SpecKitPlayground/');
+
+  // Edit the constitution so we have a known marker
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Control+A');
+  await page.keyboard.press('Delete');
+  await page.keyboard.type('# Clipboard marker');
+
+  await page.getByRole('button', { name: 'Copy markdown to clipboard' }).click();
+  await expect(page.getByRole('button', { name: 'Copy markdown to clipboard' })).toContainText(
+    'Copied',
+  );
+
+  const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboardText).toContain('Clipboard marker');
+});
+
+test('per-doc Download .md downloads the active document as markdown', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download this document as a .md file' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('constitution.md');
+});
+
 test('raw HTML pasted into the editor is escaped, not rendered', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
   const editor = page.locator('.cm-content');

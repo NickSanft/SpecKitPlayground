@@ -1,5 +1,7 @@
 import { useState } from 'preact/hooks';
+import { DocActions } from './components/DocActions';
 import { Editor } from './components/Editor';
+import { ExportModal } from './components/ExportModal';
 import { FirstRunBanner } from './components/FirstRunBanner';
 import { NewFeatureModal } from './components/NewFeatureModal';
 import { Preview } from './components/Preview';
@@ -20,11 +22,12 @@ function activeDocKey(id: ActiveDocId): string {
 }
 
 export function App() {
-  const [modalOpen, setModalOpen] = useState(false);
+  const [newFeatureOpen, setNewFeatureOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const workspace = workspaceSignal.value;
   const docKey = activeDocKey(workspace.activeDocId);
-  const openModal = () => setModalOpen(true);
+  const openNewFeature = () => setNewFeatureOpen(true);
 
   return (
     <div class="app-shell">
@@ -34,12 +37,21 @@ export function App() {
           {activeDocLabel.value}
         </span>
         <SaveStatus />
+        <button
+          type="button"
+          class="btn btn-secondary header-export"
+          onClick={() => setExportOpen(true)}
+          aria-label="Export workspace"
+        >
+          Export
+        </button>
         <SettingsMenu />
       </header>
       <main class="app-main">
-        <Sidebar onAddFeature={openModal} />
+        <Sidebar onAddFeature={openNewFeature} />
         <section class="pane pane-editor">
-          <FirstRunBanner onAddFeature={openModal} />
+          <FirstRunBanner onAddFeature={openNewFeature} />
+          <DocActions />
           <Editor
             key={docKey}
             initialDoc={activeDocContent.value}
@@ -50,12 +62,13 @@ export function App() {
           <Preview source={activeDocContent.value} />
         </section>
       </main>
-      {modalOpen && (
+      {newFeatureOpen && (
         <NewFeatureModal
-          onClose={() => setModalOpen(false)}
+          onClose={() => setNewFeatureOpen(false)}
           onCreate={(title) => commitAddFeature(title)}
         />
       )}
+      {exportOpen && <ExportModal workspace={workspace} onClose={() => setExportOpen(false)} />}
     </div>
   );
 }

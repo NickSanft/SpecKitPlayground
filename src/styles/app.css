@@ -152,6 +152,154 @@ body {
   color: var(--fg);
 }
 
+.header-export {
+  font-size: 0.8125rem;
+  padding: 4px 12px;
+}
+
+/* Doc actions toolbar above the editor */
+
+.doc-actions {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.doc-action {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-1);
+  background: transparent;
+}
+
+.doc-action:hover {
+  background: var(--bg-subtle);
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+
+/* Export modal */
+
+.modal-wide {
+  max-width: 560px;
+}
+
+.export-options {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.export-option {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2);
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.export-option:hover {
+  border-color: var(--border-strong);
+}
+
+.export-option input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.export-option-name {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.export-option-desc {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  margin-top: 2px;
+}
+
+.export-option-desc code {
+  font-family: var(--font-mono);
+  background: var(--bg);
+  padding: 0.05em 0.3em;
+  border-radius: var(--radius-1);
+  border: 1px solid var(--border);
+  font-size: 0.85em;
+}
+
+.export-tree {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2);
+  background: var(--bg);
+  max-height: 240px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.export-tree-header {
+  position: sticky;
+  top: 0;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+}
+
+.export-tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.export-tree-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.export-tree-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px var(--space-3);
+  color: var(--fg-muted);
+}
+
+.export-tree-name.is-dir {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.export-tree-glyph {
+  color: var(--fg-subtle);
+  width: 10px;
+  display: inline-block;
+}
+
+.export-error {
+  color: var(--danger);
+  font-size: 0.8125rem;
+  background: rgba(185, 28, 28, 0.08);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-1);
+  border: 1px solid rgba(185, 28, 28, 0.4);
+}
+
 .app-main {
   display: grid;
   grid-template-columns: minmax(220px, 280px) 1fr 1fr;
