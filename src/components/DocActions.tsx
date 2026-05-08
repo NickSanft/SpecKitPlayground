@@ -46,7 +46,7 @@ export function DocActions() {
         type="button"
         class="doc-action"
         onClick={handleDownload}
-        aria-label="Download this document as a .md file"
+        aria-label="Download .md — saves the active document as a markdown file"
         title="Download this document as a .md file"
       >
         Download .md

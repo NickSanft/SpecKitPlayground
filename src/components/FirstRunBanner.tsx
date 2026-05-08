@@ -6,7 +6,7 @@ export function FirstRunBanner({ onAddFeature }: { onAddFeature: () => void }) {
   if (dismissed || !isPristineWorkspace.value) return null;
 
   return (
-    <aside class="first-run-banner" role="status">
+    <div class="first-run-banner" role="status">
       <div class="first-run-body">
         <strong>This is a fresh workspace.</strong> The constitution below is seeded from the
         official Spec Kit template — edit it to make it yours, or add your first feature to start
@@ -25,6 +25,6 @@ export function FirstRunBanner({ onAddFeature }: { onAddFeature: () => void }) {
           ✕
         </button>
       </div>
-    </aside>
+    </div>
   );
 }

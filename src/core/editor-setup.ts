@@ -90,6 +90,7 @@ export function buildEditorState({ initialDoc, onChange }: EditorSetupOptions): 
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     syntaxHighlighting(markdownHighlight),
     editorTheme,
+    EditorView.contentAttributes.of({ 'aria-label': 'Markdown editor' }),
     EditorView.lineWrapping,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {

@@ -4,6 +4,8 @@ A fully client-side editor for drafting [GitHub Spec Kit](https://github.com/git
 
 **Live:** [nicksanft.github.io/SpecKitPlayground](https://nicksanft.github.io/SpecKitPlayground/) · published from `main` after every green CI run.
 
+![Spec Kit Playground showing a workspace with the editor and live preview side by side in dark mode](docs/hero.png)
+
 ## Why
 
 Spec-Driven Development is a useful discipline. The existing toolchain assumes you want to install a CLI and bind it to an LLM agent. Sometimes you just want to draft the documents — on a tablet, in a workshop, on a locked-down machine, or before you've committed to a tool stack. This is that.
