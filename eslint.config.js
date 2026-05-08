@@ -45,6 +45,7 @@ export default [
         crypto: 'readonly',
         requestAnimationFrame: 'readonly',
         cancelAnimationFrame: 'readonly',
+        Node: 'readonly',
       },
     },
     plugins: {

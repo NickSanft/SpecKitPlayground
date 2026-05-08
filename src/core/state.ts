@@ -1,6 +1,8 @@
-import { computed, signal } from '@preact/signals';
+import { computed, effect, signal } from '@preact/signals';
+import { debounce } from '../utils/debounce';
 import { slugify } from '../utils/slug';
-import { getTemplate } from './templates';
+import { clearWorkspace, loadWorkspace, saveWorkspace } from './storage';
+import { getTemplate, templates } from './templates';
 import {
   type ActiveDocId,
   type Document,
@@ -157,6 +159,15 @@ export const workspaceSignal = signal<Workspace>(createEmptyWorkspace());
 export const activeDocContent = computed(() => getActiveDocContent(workspaceSignal.value));
 export const activeDocLabel = computed(() => getActiveDocLabel(workspaceSignal.value));
 
+export const isPristineWorkspace = computed(() => {
+  const ws = workspaceSignal.value;
+  return ws.features.length === 0 && ws.constitution.content === templates.constitution;
+});
+
+export type SaveStatus = 'idle' | 'saving' | 'saved';
+export const saveStatus = signal<SaveStatus>('idle');
+export const lastSavedAt = signal<number | null>(null);
+
 export function commitAddFeature(title: string): void {
   workspaceSignal.value = addFeature(workspaceSignal.value, title);
 }
@@ -174,4 +185,51 @@ export function commitUpdateActiveDocContent(content: string): void {
 }
 export function resetWorkspace(name?: string): void {
   workspaceSignal.value = createEmptyWorkspace(name);
+}
+
+let autoSaveStarted = false;
+
+function startAutoSave(): void {
+  if (autoSaveStarted) return;
+  autoSaveStarted = true;
+
+  const flushSave = debounce((ws: Workspace) => {
+    saveStatus.value = 'saving';
+    saveWorkspace(ws)
+      .then(() => {
+        saveStatus.value = 'saved';
+        lastSavedAt.value = Date.now();
+      })
+      .catch((err: unknown) => {
+        console.warn('saveWorkspace failed', err);
+        saveStatus.value = 'idle';
+      });
+  }, 500);
+
+  let isInitial = true;
+  effect(() => {
+    const ws = workspaceSignal.value;
+    if (isInitial) {
+      isInitial = false;
+      return;
+    }
+    flushSave(ws);
+  });
+}
+
+export async function hydrateAndStartAutoSave(): Promise<void> {
+  const saved = await loadWorkspace();
+  if (saved) {
+    workspaceSignal.value = saved;
+    saveStatus.value = 'saved';
+    lastSavedAt.value = saved.updatedAt;
+  }
+  startAutoSave();
+}
+
+export async function commitResetWorkspace(): Promise<void> {
+  await clearWorkspace();
+  workspaceSignal.value = createEmptyWorkspace();
+  saveStatus.value = 'idle';
+  lastSavedAt.value = null;
 }

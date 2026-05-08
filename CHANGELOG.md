@@ -6,6 +6,48 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [0.3.0] - 2026-05-08 — Phase 3: Persistence
+
+### Added
+- IndexedDB persistence in `src/core/storage.ts` over `idb-keyval` under the versioned key `spk:workspace:v1`. The workspace is serialized to a plain `SerializedWorkspace` shape with an explicit `schemaVersion: 1` field so future schema bumps are unambiguous.
+- `deserializeWorkspace(raw)` defends against missing or malformed fields: returns `null` only when the workspace `id` is unrecoverable, otherwise fills sensible defaults (`name='My Project'`, empty features list, `activeDocId={kind:'constitution'}`). Drops malformed feature entries instead of failing the whole load. Falls back to constitution when `activeDocId` references a deleted feature or has an invalid `doc` kind.
+- Auto-save effect: a `@preact/signals` `effect` watches `workspaceSignal` and writes to IndexedDB through a 500 ms debounced flush. Skips the very first effect run so hydrate doesn't trigger a redundant save.
+- `hydrateAndStartAutoSave()` in `src/core/state.ts` is awaited from `main.tsx` before the first render. If saved state exists it replaces the default empty workspace and primes the save status to `saved`.
+- Save-status pill (`SaveStatus.tsx`) in the header — shows "Saving…" while a write is in flight, "Saved Xs/Xm/Xh ago" when the last write succeeded, and is hidden when idle (no save has happened). Live region (`aria-live="polite"`) for screen readers.
+- Settings menu (`SettingsMenu.tsx`) — three-dot toggle in the header that opens a popover. First menu item: "Reset workspace…" with a `window.confirm` and `commitResetWorkspace()` that clears IndexedDB and seeds a fresh constitution. Outside-click and Escape both close the popover.
+- First-run banner (`FirstRunBanner.tsx`) shown above the editor when the workspace is `isPristineWorkspace` (no features, constitution still equals the template). Dismissible. Includes an "Add a feature" button wired to the new-feature modal.
+
+### Why it matters
+Closes the persistence loop. The user can now type, refresh the page, and pick up exactly where they left off — no manual saves, no lost work. This is the feature that unlocks the rest of the project: every later phase assumes work survives a reload.
+
+### Architecture
+- Storage IO is split from serialization: `serialize/deserialize` are pure functions (heavily unit-tested) and only `loadWorkspace`/`saveWorkspace`/`clearWorkspace` touch idb-keyval. Tests cover the pure layer; e2e covers the IO layer in a real browser.
+- The auto-save effect lives in `src/core/state.ts` next to the signals it watches. Idempotent — `startAutoSave` guards against double-registration.
+- `commitResetWorkspace` is async (it awaits `clearWorkspace` before mutating the in-memory signal) so a reset followed immediately by a reload always sees an empty store.
+
+### UX details
+- Save pill min-width prevents header layout jitter as it cycles through statuses.
+- "Saving…" is amber (warning token), "Saved" is green (success token), idle is hidden — so the pill is information, not noise.
+- The first-run banner is dismissible without persisting the dismissal — opening a fresh tab brings it back. Acceptable for v1; Phase 5 polish can refine if needed.
+- Settings popover uses `role="menu"` + `role="menuitem"` and dismisses on Escape or outside click.
+
+### Tests
+- Unit (Vitest, **70 passed**, +11 from last phase): full storage suite covering round-trip with and without features, JSON-stringified round-trip, malformed input handling, missing fields with defaults, dropped invalid features, activeDocId fallbacks, NaN/string timestamp coercion.
+- e2e (Playwright, **9 passed**, +2 from last phase): edits persist across page reload (asserts via `[data-status="saved"]` then reloads); reset clears the workspace and the cleared state survives a reload (proving idb was actually cleared, not just memory).
+
+### Bundle
+- App JS: **204.0 KB brotli** (limit: 350 KB) — +1.6 KB for storage + status + settings + first-run code; idb-keyval is ~1 KB on its own.
+- App CSS: 2.33 KB brotli (limit: 20 KB).
+
+### Pre-push checklist
+- `tsc --noEmit` ✓
+- `eslint .` ✓ (added `Node` to globals for the SettingsMenu's outside-click handler)
+- `prettier --check .` ✓
+- `vitest run` (70 passed) ✓
+- `vite build` ✓
+- `size-limit` (204.0 KB / 350 KB) ✓
+- `playwright test` (9 passed) ✓
+
 ## [0.2.0] - 2026-05-07 — Phase 2: Domain + sidebar nav
 
 ### Added

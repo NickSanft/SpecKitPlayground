@@ -38,6 +38,120 @@ body {
   color: var(--fg-muted);
 }
 
+.save-status {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+  padding: 2px 8px;
+  border-radius: var(--radius-1);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  min-width: 80px;
+  text-align: center;
+}
+
+.save-status-saving {
+  color: var(--warning);
+}
+
+.save-status-saved {
+  color: var(--success);
+}
+
+.settings-menu {
+  position: relative;
+}
+
+.settings-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-1);
+  color: var(--fg-muted);
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.settings-toggle:hover,
+.settings-toggle[aria-expanded='true'] {
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+
+.settings-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  z-index: 50;
+  min-width: 180px;
+}
+
+.settings-item {
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--fg);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-1);
+}
+
+.settings-item:hover {
+  background: var(--bg-subtle);
+}
+
+.settings-item-danger {
+  color: var(--danger);
+}
+
+.settings-item-danger:hover {
+  background: var(--bg-subtle);
+}
+
+.first-run-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-3) var(--space-4) 0;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-2);
+  color: var(--fg);
+  font-size: 0.875rem;
+}
+
+.first-run-body {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.first-run-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.first-run-dismiss {
+  font-size: 0.875rem;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-1);
+  color: var(--fg-muted);
+}
+
+.first-run-dismiss:hover {
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--fg);
+}
+
 .app-main {
   display: grid;
   grid-template-columns: minmax(220px, 280px) 1fr 1fr;

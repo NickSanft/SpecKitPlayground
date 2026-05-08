@@ -113,6 +113,54 @@ test('deleting a feature does not recycle numbers', async ({ page }) => {
   expect(finalDirs).toEqual(['001-one', '003-three', '004-four']);
 });
 
+test('edits persist across a page reload via IndexedDB auto-save', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+  await page.getByRole('button', { name: '+ Add feature' }).click();
+  await page.locator('.modal-input').fill('Persisted Feature');
+  await page.getByRole('button', { name: 'Create' }).click();
+
+  // Edit the spec body
+  const editor = page.locator('.cm-content');
+  await editor.click();
+  await page.keyboard.press('Control+A');
+  await page.keyboard.press('Delete');
+  await page.keyboard.type('# Persisted spec marker');
+
+  // Wait for auto-save (500ms debounce + write)
+  await expect(page.locator('.save-status')).toHaveAttribute('data-status', 'saved', {
+    timeout: 3000,
+  });
+
+  // Reload — IndexedDB persists across reloads in the same context
+  await page.reload();
+
+  await expect(page.locator('.tree-feature-dir')).toContainText('001-persisted-feature');
+  await expect(page.locator('.preview-body').getByRole('heading', { level: 1 })).toContainText(
+    'Persisted spec marker',
+  );
+});
+
+test('reset clears the workspace and seeds a fresh constitution', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+  page.on('dialog', (dialog) => dialog.accept());
+
+  await page.getByRole('button', { name: '+ Add feature' }).click();
+  await page.locator('.modal-input').fill('Will Be Reset');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.locator('.tree-feature-dir')).toHaveCount(1);
+
+  // Open settings menu and reset
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('menuitem', { name: 'Reset workspace…' }).click();
+
+  await expect(page.locator('.tree-feature-dir')).toHaveCount(0);
+  await expect(page.locator('.tree-leaf.is-active')).toContainText('constitution.md');
+
+  // And the reset survives a reload (cleared from IndexedDB, not just memory)
+  await page.reload();
+  await expect(page.locator('.tree-feature-dir')).toHaveCount(0);
+});
+
 test('raw HTML pasted into the editor is escaped, not rendered', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
   const editor = page.locator('.cm-content');

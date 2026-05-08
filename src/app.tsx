@@ -1,7 +1,10 @@
 import { useState } from 'preact/hooks';
 import { Editor } from './components/Editor';
+import { FirstRunBanner } from './components/FirstRunBanner';
 import { NewFeatureModal } from './components/NewFeatureModal';
 import { Preview } from './components/Preview';
+import { SaveStatus } from './components/SaveStatus';
+import { SettingsMenu } from './components/SettingsMenu';
 import { Sidebar } from './components/Sidebar';
 import {
   activeDocContent,
@@ -21,19 +24,22 @@ export function App() {
 
   const workspace = workspaceSignal.value;
   const docKey = activeDocKey(workspace.activeDocId);
+  const openModal = () => setModalOpen(true);
 
   return (
     <div class="app-shell">
       <header class="app-header">
         <h1 class="app-title">Spec Kit Playground</h1>
-        <span class="app-tagline">Phase 2 · domain + sidebar nav</span>
         <span class="app-doc-label" aria-live="polite">
           {activeDocLabel.value}
         </span>
+        <SaveStatus />
+        <SettingsMenu />
       </header>
       <main class="app-main">
-        <Sidebar onAddFeature={() => setModalOpen(true)} />
+        <Sidebar onAddFeature={openModal} />
         <section class="pane pane-editor">
+          <FirstRunBanner onAddFeature={openModal} />
           <Editor
             key={docKey}
             initialDoc={activeDocContent.value}
