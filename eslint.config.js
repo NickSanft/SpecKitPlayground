@@ -42,6 +42,9 @@ export default [
         MouseEvent: 'readonly',
         process: 'readonly',
         fetch: 'readonly',
+        crypto: 'readonly',
+        requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly',
       },
     },
     plugins: {

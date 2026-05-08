@@ -6,6 +6,51 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [0.2.0] - 2026-05-07 — Phase 2: Domain + sidebar nav
+
+### Added
+- Full domain model in `src/core/types.ts`: `Workspace`, `Feature`, `Document`, and a discriminated `ActiveDocId` (`{kind: 'constitution'} | {kind: 'feature', featureId, doc}`). `activeDocsAreEqual` for cheap equality.
+- Pure reducers in `src/core/state.ts`: `createEmptyWorkspace`, `addFeature`, `renameFeature`, `deleteFeature`, `setActiveDoc`, `updateActiveDocContent`. Each returns a new workspace; tests assert immutability and reference-stability when nothing changed.
+- Signals layer alongside the reducers: `workspaceSignal`, `activeDocContent` and `activeDocLabel` computeds, plus `commit*` thunks. Tests import the reducers directly and never touch the signals.
+- `src/core/templates.ts` re-exports the four upstream templates as strings via Vite's `?raw`. Build-time embedding, no runtime fetch.
+- `src/utils/slug.ts` (`slugify`, `formatFeatureNumber`, `featureDirName`) with 14 unit tests covering diacritics, non-ASCII fallthrough, length truncation without trailing hyphens, punctuation collapsing.
+- `src/components/Sidebar.tsx` + `DocumentTree.tsx`: Memory section (constitution.md) and Specs section listing each feature with its three docs nested under a dashed connector. Active leaf is highlighted with the accent-soft palette.
+- Hover/focus-revealed rename and delete actions on each feature. Rename uses an inline input (Enter to commit, Escape to cancel). Delete uses `window.confirm`.
+- `src/components/NewFeatureModal.tsx`: backdrop-dismissable modal with an autofocused title field, live slug preview (`Will be saved as 001-user-auth`), Cancel + Create buttons. Mounted only when open so component state always starts fresh.
+- Active-doc label in the header (`spec.md — User Auth`) so the user always knows which document the editor is showing.
+
+### Why it matters
+First multi-document workflow. The user can now build out a real Spec Kit project — constitution plus N features each with spec/plan/tasks — and switch between any of them. Templates seed each new feature so the content matches what `specify init` would produce.
+
+### Architecture
+- Editor is forced to remount on doc switch via `key={activeDocKey(activeDocId)}` in `app.tsx`. Simpler than dispatching CodeMirror transactions to swap docs, and fast (CM mounts in single-digit ms). Future phase can revisit if it ever feels janky.
+- Reducers are pure and deterministic except for `Date.now()` and `crypto.randomUUID()`. Tests don't mock either — assertions only check structural invariants, not exact ids/timestamps.
+- Feature numbering is monotonic: `nextFeatureNumber` walks the existing list and adds 1 to the max. Deleting a feature does NOT decrement the next number, by design (matches Spec Kit's branch convention).
+- Slug stays short (40 chars max) and never ends in a separator after truncation.
+
+### UX details
+- Sidebar features are full cards with a dir-name preview (`001-user-auth`) above the human title.
+- Active leaf gets `aria-current="true"`. Tree sections use uppercase mono labels for an "engineering blueprint" feel.
+- Modal autofocuses the title input on open; Esc and the Cancel button both close it; the Create button stays disabled until the title is non-empty.
+- Phase 1's separate debounced preview signal removed — the workspace store is the single source of truth and Preact + signals + useMemo on the rendered HTML keeps re-render cost trivial.
+
+### Tests
+- Unit (Vitest, 59 passing): debounce (7), slug (14), markdown (13), state (25). State suite covers all reducers including: numbers don't recycle on delete, deleting active feature falls back to constitution, rename rejects empty input, content updates return same reference when nothing changed.
+- e2e (Playwright, 7 passing): app shell + constitution active by default; add feature → spec/plan/tasks seeded and active; sequential numbering; doc switching swaps editor and preview; edits preserved across switches; delete preserves remaining numbers and assigns the next unused number; XSS escape on raw HTML paste.
+
+### Bundle
+- App JS: **202.4 KB brotli** (limit: 350 KB) — +7 KB from Phase 1 for the sidebar/modal/state code.
+- App CSS: 2.04 KB brotli (limit: 20 KB).
+
+### Pre-push checklist
+- `tsc --noEmit` ✓
+- `eslint .` ✓
+- `prettier --check .` ✓
+- `vitest run` (59 passed) ✓
+- `vite build` ✓
+- `size-limit` (202.4 KB / 350 KB) ✓
+- `playwright test` (7 passed) ✓
+
 ## [0.1.0] - 2026-05-07 — Phase 1: Skeleton + single-doc editor
 
 ### Added

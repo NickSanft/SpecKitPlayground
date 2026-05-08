@@ -1,38 +1,55 @@
-import { signal } from '@preact/signals';
-import { useEffect } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import { Editor } from './components/Editor';
+import { NewFeatureModal } from './components/NewFeatureModal';
 import { Preview } from './components/Preview';
-import welcomeMarkdown from './content/welcome.md?raw';
-import { debounce } from './utils/debounce';
+import { Sidebar } from './components/Sidebar';
+import {
+  activeDocContent,
+  activeDocLabel,
+  commitAddFeature,
+  commitUpdateActiveDocContent,
+  workspaceSignal,
+} from './core/state';
+import type { ActiveDocId } from './core/types';
 
-const previewDoc = signal<string>(welcomeMarkdown);
-
-const flushPreview = debounce((next: string) => {
-  previewDoc.value = next;
-}, 100);
+function activeDocKey(id: ActiveDocId): string {
+  return id.kind === 'constitution' ? 'constitution' : `${id.featureId}:${id.doc}`;
+}
 
 export function App() {
-  useEffect(() => {
-    return () => flushPreview.cancel();
-  }, []);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const workspace = workspaceSignal.value;
+  const docKey = activeDocKey(workspace.activeDocId);
 
   return (
     <div class="app-shell">
       <header class="app-header">
         <h1 class="app-title">Spec Kit Playground</h1>
-        <span class="app-tagline">Phase 1 · single-doc editor + live preview</span>
+        <span class="app-tagline">Phase 2 · domain + sidebar nav</span>
+        <span class="app-doc-label" aria-live="polite">
+          {activeDocLabel.value}
+        </span>
       </header>
       <main class="app-main">
-        <aside class="pane pane-sidebar" aria-label="Document tree">
-          <p class="placeholder">Sidebar lands in Phase 2.</p>
-        </aside>
+        <Sidebar onAddFeature={() => setModalOpen(true)} />
         <section class="pane pane-editor">
-          <Editor initialDoc={welcomeMarkdown} onChange={flushPreview} />
+          <Editor
+            key={docKey}
+            initialDoc={activeDocContent.value}
+            onChange={commitUpdateActiveDocContent}
+          />
         </section>
         <section class="pane pane-preview">
-          <Preview source={previewDoc.value} />
+          <Preview source={activeDocContent.value} />
         </section>
       </main>
+      {modalOpen && (
+        <NewFeatureModal
+          onClose={() => setModalOpen(false)}
+          onCreate={(title) => commitAddFeature(title)}
+        />
+      )}
     </div>
   );
 }
