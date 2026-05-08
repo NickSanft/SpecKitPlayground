@@ -300,6 +300,201 @@ body {
   border: 1px solid rgba(185, 28, 28, 0.4);
 }
 
+/* Theme toggle + help icon button (share visual treatment) */
+
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-1);
+  color: var(--fg-muted);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.theme-toggle:hover {
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+
+/* Help modal sections */
+
+.help-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--fg);
+  line-height: 1.55;
+}
+
+.help-section + .help-section {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-4);
+}
+
+.help-section a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.help-section code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--bg-subtle);
+  padding: 0.05em 0.35em;
+  border-radius: var(--radius-1);
+  border: 1px solid var(--border);
+}
+
+.help-heading {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-subtle);
+}
+
+.help-shortcuts {
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.help-shortcuts td {
+  padding: var(--space-1) var(--space-3);
+  vertical-align: top;
+}
+
+.help-shortcuts td:first-child {
+  white-space: nowrap;
+}
+
+.help-shortcuts kbd {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-1);
+  padding: 1px 6px;
+  color: var(--fg);
+}
+
+.help-list {
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.help-footnote {
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+  margin-top: var(--space-1);
+}
+
+.help-meta {
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+}
+
+/* Mobile tab bar — visible only below 768px */
+
+.mobile-tabs {
+  display: none;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  padding: var(--space-1);
+  gap: var(--space-1);
+}
+
+.mobile-tab {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  padding: var(--space-2);
+  border-radius: var(--radius-1);
+}
+
+.mobile-tab.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Sidebar/preview toggle — desktop only */
+
+@media (min-width: 768px) {
+  .app-shell[data-sidebar='closed'] .pane-sidebar {
+    display: none;
+  }
+  .app-shell[data-preview='closed'] .pane-preview {
+    display: none;
+  }
+  .app-shell[data-sidebar='closed'] .app-main {
+    grid-template-columns: 1fr 1fr;
+  }
+  .app-shell[data-preview='closed'] .app-main {
+    grid-template-columns: minmax(220px, 280px) 1fr;
+  }
+  .app-shell[data-sidebar='closed'][data-preview='closed'] .app-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive: stack panes + tab bar below 768px */
+
+@media (max-width: 767px) {
+  .app-shell {
+    grid-template-rows: auto 1fr auto;
+  }
+  .app-header {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+  .app-doc-label {
+    flex-basis: 100%;
+    margin-left: 0;
+    order: 10;
+  }
+  .save-status {
+    min-width: 0;
+  }
+  .header-export {
+    margin-left: auto;
+  }
+  .app-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
+  .app-main > .pane {
+    display: none;
+  }
+  .app-shell[data-mobile-pane='tree'] .pane-sidebar {
+    display: flex;
+    border-right: 0;
+  }
+  .app-shell[data-mobile-pane='editor'] .pane-editor {
+    display: flex;
+    border-right: 0;
+  }
+  .app-shell[data-mobile-pane='preview'] .pane-preview {
+    display: flex;
+  }
+  .mobile-tabs {
+    display: flex;
+  }
+  .preview-body {
+    padding: var(--space-3) var(--space-4);
+  }
+  .modal {
+    padding: var(--space-4);
+  }
+}
+
 .app-main {
   display: grid;
   grid-template-columns: minmax(220px, 280px) 1fr 1fr;
@@ -526,6 +721,8 @@ body {
   padding: var(--space-5);
   width: 100%;
   max-width: 420px;
+  max-height: calc(100vh - 2 * var(--space-4));
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);

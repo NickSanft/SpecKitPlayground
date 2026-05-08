@@ -46,6 +46,7 @@ export default [
         requestAnimationFrame: 'readonly',
         cancelAnimationFrame: 'readonly',
         Node: 'readonly',
+        EventTarget: 'readonly',
       },
     },
     plugins: {

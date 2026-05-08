@@ -6,6 +6,60 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [0.5.0] - 2026-05-08 — Phase 5: Polish
+
+### Added
+- **Theme system** (`src/core/theme.ts`): three modes — `system` (default, follows `prefers-color-scheme`), `light`, `dark`. Manual override persists to `localStorage` under `spk:theme`; `system` removes the stored value. A `@preact/signals` effect drives `<html data-theme>` and the `:root[data-theme='dark']` rules in `tokens.css` already shipped at Phase 1 take it from there.
+- **`ThemeToggle.tsx`** in the header — single-button cycle (system → light → dark → system) with glyphs (⊙ ☀ ☾) and dynamic `aria-label` describing both the current state and the next action.
+- **Keyboard shortcuts** module (`src/core/shortcuts.ts`): platform-aware (`⌘` on Mac, `Ctrl` elsewhere), skips when an editable target is focused so typing in the editor or a modal input never triggers app shortcuts. `formatShortcut` produces the labels the help modal renders.
+- Bindings: `⌘E` Export, `⌘B` Toggle sidebar, `⌘P` Toggle preview, `⌘N` New feature, `⌘/` Help.
+- **`HelpModal.tsx`** — opened via a `?` button in the header or `⌘/`. Brief SDD intro, link to the upstream Spec Kit, full shortcut table with `<kbd>` styling, conventions reminder (one `tasks.md`, NNN-slug numbering), source / issues links, MIT note. The footnote calls out that some browsers reserve `⌘N` for new windows and falls back to the sidebar button.
+- **Layout signals** (`src/core/layout.ts`) for `sidebarVisible`, `previewVisible`, `mobilePane`. The shell uses `data-sidebar` / `data-preview` / `data-mobile-pane` attributes that CSS selectors consume — no JS-driven layout calculations.
+- **Mobile tab bar** (`MobileTabBar.tsx`) — visible only below 768 px, switches between Tree / Edit / Preview as the single visible pane. App shell stacks vertically; the header wraps on the active-doc label so titles stay readable at 375 px.
+- **Accessibility pass** in `reset.css`:
+  - Global `:focus-visible` outline using the accent token, 2 px offset
+  - `@media (prefers-reduced-motion: reduce)` shrinks all animations and transitions to ~0 ms
+- All icon-only buttons now have explicit `aria-label`s (Settings, Theme toggle, Help, per-doc Copy / Download, FirstRunBanner dismiss, feature rename / delete).
+- `index.html` gets `theme-color`, full Open Graph + Twitter card meta, and a more descriptive `<meta description>`.
+- Modal max-height + scroll so long content (the help modal) never pushes its action button below the viewport.
+- README rewritten as a portfolio-quality intro: live link up top, "What's in the box" feature list, conventions, stack with linked deps, develop / test / deploy commands, project layout pointer.
+
+### Why it matters
+Last functional phase before v1.0. The product now feels deliberate in both themes, is keyboard-driveable, narrates itself via the help modal, and survives a 375 px viewport. A non-developer landing on the page can read the help once and figure out the rest.
+
+### Architecture
+- Layout state is a tiny `signal`-backed module with public mutators (`toggleSidebar`, `togglePreview`, `setMobilePane`). The shortcut bindings call these directly; the components subscribe via signal reads.
+- The shortcuts module is purely additive — it has no app-specific state. It's a `registerShortcuts(bindings)` call that returns an unregister fn. The bindings are defined in `App.tsx` next to where they're surfaced (the Help modal renders the same array).
+- `data-mobile-pane` etc. on the shell mean the responsive split between desktop and mobile is entirely CSS — no `useEffect` watching window width, no media-query JS hooks.
+
+### UX details
+- Glyphs in the theme toggle change with state so the user always knows what they have AND what's next.
+- `<kbd>` tags in the help modal use the mono token, with a subtle bottom-border shadow to read like a key cap.
+- The mobile tab bar uses the same `accent-soft` highlighting pattern as the document tree's active leaf — visual consistency across the app.
+- Modal width: standard 420 px; export and help use a `modal-wide` (560 px) variant for tabular content.
+
+### Tests
+- Unit (Vitest, **88 passed**, +3): `formatShortcut` covers single-letter, multi-modifier, multi-character (`/`) cases.
+- e2e (Playwright, **15 passed**, +3): theme toggle cycles system → light → dark and the dark choice survives a reload; help modal opens via the `?` button, lists shortcuts, and the "Got it" button dismisses it; `Cmd/Ctrl+B` toggles the sidebar.
+
+### Bundle
+- App JS: **233.7 KB brotli** (limit: 350 KB) — +1.5 KB for theme + shortcuts + help + layout code.
+- App CSS: **3.07 KB brotli** (limit: 20 KB) — +0.5 KB for help modal, mobile tab bar, focus rings.
+
+### Pre-push checklist
+- `tsc --noEmit` ✓
+- `eslint .` ✓ (added `EventTarget` to globals for the shortcuts module)
+- `prettier --check .` ✓
+- `vitest run` (88 passed) ✓
+- `vite build` ✓
+- `size-limit` (233.7 KB / 350 KB) ✓
+- `playwright test` (15 passed) ✓
+
+### Known limitations
+- No loading skeleton during the IndexedDB hydrate (acceptable: the hydrate is single-digit ms; the FOUC is barely perceptible).
+- No live "Saved Xs ago" ticker — the relative timestamp updates only on the next render. Acceptable; a `setInterval` for a continuously-ticking pill would create a render every second.
+- Lighthouse run on the deployed site is the v1.0 sign-off, not a Phase 5 deliverable.
+
 ## [0.4.0] - 2026-05-08 — Phase 4: Export
 
 ### Added

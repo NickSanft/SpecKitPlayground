@@ -230,6 +230,66 @@ test('per-doc Download .md downloads the active document as markdown', async ({ 
   expect(download.suggestedFilename()).toBe('constitution.md');
 });
 
+test('theme toggle cycles system → light → dark → system and persists across reload', async ({
+  page,
+}) => {
+  await page.goto('/SpecKitPlayground/');
+  const html = page.locator('html');
+
+  // Initially: system (no data-theme attribute)
+  await expect(html).not.toHaveAttribute('data-theme', /.+/);
+
+  const toggle = page.getByRole('button', { name: /Theme:/ });
+  await toggle.click();
+  await expect(html).toHaveAttribute('data-theme', 'light');
+
+  await toggle.click();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+
+  // Persistence — dark survives reload
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  // And cycles back to system
+  await page.getByRole('button', { name: /Theme:/ }).click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
+});
+
+test('help modal opens via the ? button and lists keyboard shortcuts', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+
+  await page.getByRole('button', { name: 'Show help' }).click();
+  const dialog = page.getByRole('dialog', { name: 'About Spec Kit Playground' });
+  await dialog.waitFor();
+
+  await expect(dialog.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeVisible();
+  await expect(dialog.getByText('Export workspace')).toBeVisible();
+  await expect(dialog.getByText('Toggle sidebar')).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Got it' }).click();
+  await expect(dialog).not.toBeVisible();
+});
+
+test('Cmd/Ctrl+B toggles the sidebar', async ({ page }, testInfo) => {
+  await page.goto('/SpecKitPlayground/');
+  // Click somewhere neutral so the editor doesn't have focus (shortcuts skip when editing)
+  await page.locator('.app-header').click();
+
+  const sidebar = page.locator('.pane-sidebar');
+  await expect(sidebar).toBeVisible();
+
+  const isMac = testInfo.project.use.userAgent
+    ? /Mac/.test(testInfo.project.use.userAgent)
+    : process.platform === 'darwin';
+  const modifier = isMac ? 'Meta' : 'Control';
+
+  await page.keyboard.press(`${modifier}+B`);
+  await expect(sidebar).toBeHidden();
+
+  await page.keyboard.press(`${modifier}+B`);
+  await expect(sidebar).toBeVisible();
+});
+
 test('raw HTML pasted into the editor is escaped, not rendered', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
   const editor = page.locator('.cm-content');
