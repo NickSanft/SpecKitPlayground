@@ -26,6 +26,7 @@ export interface WorkspaceIndex {
 interface SerializedDocument {
   content: string;
   updatedAt: number;
+  baseline?: string;
 }
 
 interface SerializedFeature {
@@ -56,6 +57,14 @@ interface SerializedIndex {
   ids: string[];
 }
 
+function serializeDocument(doc: Document): SerializedDocument {
+  const out: SerializedDocument = { content: doc.content, updatedAt: doc.updatedAt };
+  if (doc.baseline !== undefined && doc.baseline !== doc.content) {
+    out.baseline = doc.baseline;
+  }
+  return out;
+}
+
 export function serializeWorkspace(ws: Workspace): SerializedWorkspace {
   return {
     schemaVersion: 1,
@@ -63,15 +72,15 @@ export function serializeWorkspace(ws: Workspace): SerializedWorkspace {
     name: ws.name,
     createdAt: ws.createdAt,
     updatedAt: ws.updatedAt,
-    constitution: { content: ws.constitution.content, updatedAt: ws.constitution.updatedAt },
+    constitution: serializeDocument(ws.constitution),
     features: ws.features.map((f) => ({
       id: f.id,
       number: f.number,
       slug: f.slug,
       title: f.title,
-      spec: { content: f.spec.content, updatedAt: f.spec.updatedAt },
-      plan: { content: f.plan.content, updatedAt: f.plan.updatedAt },
-      tasks: { content: f.tasks.content, updatedAt: f.tasks.updatedAt },
+      spec: serializeDocument(f.spec),
+      plan: serializeDocument(f.plan),
+      tasks: serializeDocument(f.tasks),
       createdAt: f.createdAt,
     })),
     activeDocId: ws.activeDocId,
@@ -91,10 +100,16 @@ function asNumber(v: unknown, fallback: number): number {
 }
 
 function deserializeDocument(raw: unknown, now: number): Document {
-  if (!isObject(raw)) return { content: '', updatedAt: now };
+  if (!isObject(raw)) return { content: '', updatedAt: now, baseline: '' };
+  const content = asString(raw['content'], '');
+  const baselineRaw = raw['baseline'];
+  // Older records (pre-Phase-10) don't carry a baseline — default to current
+  // content so the diff view shows nothing until the user makes an edit.
+  const baseline = typeof baselineRaw === 'string' ? baselineRaw : content;
   return {
-    content: asString(raw['content'], ''),
+    content,
     updatedAt: asNumber(raw['updatedAt'], now),
+    baseline,
   };
 }
 

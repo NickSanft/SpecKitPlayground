@@ -37,7 +37,7 @@ function now(): number {
 }
 
 function newDocument(content: string, at: number = now()): Document {
-  return { content, updatedAt: at };
+  return { content, updatedAt: at, baseline: content };
 }
 
 export function createEmptyWorkspace(name: string = 'My Project'): Workspace {
@@ -128,15 +128,56 @@ export function updateActiveDocContent(workspace: Workspace, content: string): W
     if (workspace.constitution.content === content) return workspace;
     return {
       ...workspace,
-      constitution: { content, updatedAt: at },
+      constitution: { ...workspace.constitution, content, updatedAt: at },
       updatedAt: at,
     };
   }
   const target = workspace.activeDocId;
   const features = workspace.features.map((f) =>
-    f.id === target.featureId ? { ...f, [target.doc]: { content, updatedAt: at } } : f,
+    f.id === target.featureId
+      ? { ...f, [target.doc]: { ...f[target.doc], content, updatedAt: at } }
+      : f,
   );
   return { ...workspace, features, updatedAt: at };
+}
+
+function rebaselineDoc(doc: Document): Document {
+  if (doc.baseline === doc.content) return doc;
+  return { ...doc, baseline: doc.content };
+}
+
+export function markActiveDocAsBaseline(workspace: Workspace): Workspace {
+  if (workspace.activeDocId.kind === 'constitution') {
+    const next = rebaselineDoc(workspace.constitution);
+    if (next === workspace.constitution) return workspace;
+    return { ...workspace, constitution: next };
+  }
+  const target = workspace.activeDocId;
+  let changed = false;
+  const features = workspace.features.map((f) => {
+    if (f.id !== target.featureId) return f;
+    const next = rebaselineDoc(f[target.doc]);
+    if (next === f[target.doc]) return f;
+    changed = true;
+    return { ...f, [target.doc]: next };
+  });
+  if (!changed) return workspace;
+  return { ...workspace, features };
+}
+
+export function markAllDocsAsBaseline(workspace: Workspace): Workspace {
+  const constitution = rebaselineDoc(workspace.constitution);
+  let changed = constitution !== workspace.constitution;
+  const features = workspace.features.map((f) => {
+    const spec = rebaselineDoc(f.spec);
+    const plan = rebaselineDoc(f.plan);
+    const tasks = rebaselineDoc(f.tasks);
+    if (spec === f.spec && plan === f.plan && tasks === f.tasks) return f;
+    changed = true;
+    return { ...f, spec, plan, tasks };
+  });
+  if (!changed) return workspace;
+  return { ...workspace, constitution, features };
 }
 
 export function renameWorkspace(workspace: Workspace, newName: string): Workspace {
@@ -153,6 +194,34 @@ export function getActiveDocContent(workspace: Workspace): string {
   const feature = workspace.features.find((f) => f.id === target.featureId);
   if (!feature) return '';
   return feature[target.doc].content;
+}
+
+export function getActiveDocBaseline(workspace: Workspace): string {
+  if (workspace.activeDocId.kind === 'constitution') {
+    return workspace.constitution.baseline ?? workspace.constitution.content;
+  }
+  const target = workspace.activeDocId;
+  const feature = workspace.features.find((f) => f.id === target.featureId);
+  if (!feature) return '';
+  const doc = feature[target.doc];
+  return doc.baseline ?? doc.content;
+}
+
+/** Count how many docs in the workspace have unsaved diffs against baseline. */
+export function countChangedDocs(workspace: Workspace): number {
+  let n = 0;
+  if (
+    (workspace.constitution.baseline ?? workspace.constitution.content) !==
+    workspace.constitution.content
+  ) {
+    n += 1;
+  }
+  for (const feature of workspace.features) {
+    for (const doc of [feature.spec, feature.plan, feature.tasks]) {
+      if ((doc.baseline ?? doc.content) !== doc.content) n += 1;
+    }
+  }
+  return n;
 }
 
 export function getActiveDocLabel(workspace: Workspace): string {
@@ -175,7 +244,9 @@ export const FEATURE_DOCS: readonly FeatureDocKind[] = FEATURE_DOC_KINDS;
 export const workspaceSignal = signal<Workspace>(createEmptyWorkspace());
 export const workspaceList = signal<WorkspaceMeta[]>([]);
 export const activeDocContent = computed(() => getActiveDocContent(workspaceSignal.value));
+export const activeDocBaseline = computed(() => getActiveDocBaseline(workspaceSignal.value));
 export const activeDocLabel = computed(() => getActiveDocLabel(workspaceSignal.value));
+export const changedDocCount = computed(() => countChangedDocs(workspaceSignal.value));
 
 export const isPristineWorkspace = computed(() => {
   const ws = workspaceSignal.value;
@@ -200,6 +271,12 @@ export function commitSetActiveDoc(next: ActiveDocId): void {
 }
 export function commitUpdateActiveDocContent(content: string): void {
   workspaceSignal.value = updateActiveDocContent(workspaceSignal.value, content);
+}
+export function commitMarkActiveDocAsBaseline(): void {
+  workspaceSignal.value = markActiveDocAsBaseline(workspaceSignal.value);
+}
+export function commitMarkAllAsBaseline(): void {
+  workspaceSignal.value = markAllDocsAsBaseline(workspaceSignal.value);
 }
 export function commitRenameActiveWorkspace(newName: string): void {
   const next = renameWorkspace(workspaceSignal.value, newName);
@@ -302,7 +379,9 @@ export async function commitCreateWorkspace(name: string = 'New Workspace'): Pro
 /**
  * Import a workspace decoded from a share token. Always lands as a fresh
  * record with a new id (so it doesn't collide with whatever the user already
- * has saved under the original id) and becomes the active workspace.
+ * has saved under the original id) and becomes the active workspace. Every
+ * doc's baseline is reset to its imported content so the receiver starts
+ * with a clean diff slate.
  */
 export async function commitCreateWorkspaceFromShared(
   shared: Workspace,
@@ -310,8 +389,9 @@ export async function commitCreateWorkspaceFromShared(
 ): Promise<void> {
   flushSave.flush();
   const at = now();
+  const rebaselined = markAllDocsAsBaseline(shared);
   const next: Workspace = {
-    ...shared,
+    ...rebaselined,
     id: newId(),
     createdAt: at,
     updatedAt: at,

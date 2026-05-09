@@ -515,6 +515,36 @@ test('combined-md export round-trips back via DropZone import', async ({ page })
   ).toContainText('Round trip constitution');
 });
 
+test('diff view highlights changes since baseline; mark baseline clears them', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+
+  // Replace the constitution and wait for save (data-saved-at advances).
+  await replaceEditorContent(page, '# Original constitution\n\n## Section A\n\nbody one');
+
+  // Open the diff view from the doc-actions toolbar.
+  await page.getByRole('button', { name: 'View diff against baseline' }).click();
+  // The fresh workspace was created with baseline = template content, so the
+  // initial diff against the now-edited content should show changes.
+  const diffSummary = page.locator('.diff-header .diff-summary');
+  await expect(diffSummary).toBeVisible();
+  await expect(page.locator('.diff-line-added').first()).toBeVisible();
+
+  // Header shows the changed-doc pip.
+  await expect(page.locator('.changed-pip')).toContainText('changed');
+
+  // Mark current as baseline → diff becomes empty + pip disappears.
+  await page.getByRole('button', { name: 'Mark current content as baseline' }).click();
+  await expect(page.locator('.diff-empty')).toBeVisible();
+  await expect(page.locator('.changed-pip')).toHaveCount(0);
+
+  // Switch back to edit, change a line, switch to diff again — that line shows up.
+  await page.getByRole('button', { name: 'Switch to edit view' }).click();
+  await replaceEditorContent(page, '# Original constitution\n\n## Section A\n\nbody two — edited');
+  await page.getByRole('button', { name: 'View diff against baseline' }).click();
+  await expect(page.locator('.diff-line-removed')).toContainText('body one');
+  await expect(page.locator('.diff-line-added')).toContainText('body two — edited');
+});
+
 test('raw HTML pasted into the editor is escaped, not rendered', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
   await replaceEditorContent(page, '<script>window.__pwned=true</script>');

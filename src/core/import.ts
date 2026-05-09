@@ -46,7 +46,7 @@ function trimBody(lines: string[]): string {
 }
 
 function newDocument(content: string, at: number): Document {
-  return { content, updatedAt: at };
+  return { content, updatedAt: at, baseline: content };
 }
 
 interface FeatureBuilder {

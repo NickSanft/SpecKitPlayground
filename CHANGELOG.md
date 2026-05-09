@@ -6,6 +6,56 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [1.4.0] - 2026-05-09 — Phase 10: Diff view
+
+### Added
+- **`baseline?: string`** field on `Document`. Tracks "what the doc looked like at the last meaningful checkpoint" so the diff view has something to compare against. Storage round-trips it explicitly when it differs from `content` (so the on-disk record stays small for the common no-edits case).
+- **`src/utils/diff.ts`** — hand-rolled line-level diff via standard LCS. Returns a sequence of `DiffLine[]` ops (`equal` / `added` / `removed`) with 1-based line numbers in both baseline and current. `summarizeDiff(diff)` totals the counts; `hasChanges(a, b)` is a constant-time identity check used by the indicator. ~80 lines, no new deps.
+- **`DiffView.tsx`** — replaces the editor pane when the user toggles diff mode. Renders `+ added`, `− removed`, ` equal` lines with green/red gutter colors and a header summary. Empty state when baseline equals current.
+- **DocActions toolbar grew two buttons**:
+  - **Diff / Editing view** — toggles the editor mode; persisted as a module-level signal so it survives doc switches.
+  - **Mark baseline** — disabled when there's nothing to baseline (i.e., `baseline === content`).
+- **Header changed-doc pip** — only renders when at least one doc differs from baseline. Shows `N changed` with warning palette + tooltip listing the count. Implemented as a `computed(() => countChangedDocs(workspaceSignal.value))`.
+- **Reducers**: `markActiveDocAsBaseline`, `markAllDocsAsBaseline`. `commitCreateWorkspaceFromShared` now passes the imported workspace through `markAllDocsAsBaseline` so the receiver starts with a clean slate (no diff against the sender's old baseline).
+- **`updateActiveDocContent`** preserves `baseline` (and any other fields) instead of replacing the whole doc — this was a latent bug that would have manifested once Phase 10 landed, but didn't trip earlier tests because no other field had been added yet.
+
+### Why it matters
+Self-review before exporting or sharing. The pip in the header is a passive nudge ("you have unsaved changes since you last marked a baseline"); the diff view is the active surface. The combination turns "did I change anything important since last time?" from a memory exercise into one click.
+
+### Architecture
+- **The diff is computed, not persisted.** Only `baseline` is persisted; the diff itself is recomputed on every render via `useMemo` in `DiffView`. This keeps the wire format small and avoids cache-invalidation bugs.
+- **Baseline lifecycle**: set on workspace creation (= template content), on every doc when imported (= imported content), and explicitly via "Mark baseline". NOT touched on export — the user might want to compare exports across time.
+- **The diff util is O(m·n) memory and time.** Acceptable for typical document sizes; a Myers-style algorithm would be needed for very large docs (>10 K lines), out of scope for v1.4.
+- **`editorMode` lives at module level** (in `DocActions.tsx`) rather than App state. This is so the diff toggle survives doc switches — the user can flip to diff, click around the sidebar, and stay in diff view.
+
+### UX details
+- Diff line backgrounds use the existing success/danger token palette at low opacity, so they read as subtle highlights even in dark mode.
+- The Mark-baseline button is disabled when baseline already equals content, to make the empty-state self-explanatory rather than letting the user click a no-op button.
+- Empty state in the diff view is verbose enough to explain WHEN the baseline updates (creation, import, explicit mark) so the user understands the semantics.
+- The header pip uses the warning palette to differentiate it from the lint pip (which uses severity-specific colors).
+
+### Tests
+- Unit (Vitest, **159 passed**, +13): `diffLines` covers identical input, additions, removals, full replacement, empty baseline / current / both, line-number tracking, and a 200-line stress case; `summarizeDiff` and `hasChanges` covered too.
+- e2e (Playwright × Chromium + WebKit, **50 passed**, +1): edit constitution → open diff → see `+ added` lines + header pip; click Mark baseline → diff goes empty + pip disappears; switch back to edit, change again, switch to diff → see the new change highlighted with the previous body in `−` and new body in `+`.
+
+### Bundle
+- App JS: **241.2 KB brotli** (limit: 350 KB) — +1.2 KB for the diff util, view component, and DocActions buttons.
+- App CSS: **4.04 KB brotli** (limit: 20 KB) — +0.3 KB for the diff line palette and changed-pip styles.
+- Lighthouse unchanged: 100 / 95 / 100 / 100.
+
+### Pre-push checklist
+- `tsc --noEmit` ✓
+- `eslint .` ✓
+- `prettier --check .` ✓
+- `vitest run` (159 passed) ✓
+- `vite build` ✓
+- `size-limit` (241.2 KB / 350 KB) ✓
+- `playwright test` × Chromium + WebKit (50 passed; Firefox runs in CI) ✓
+- `lhci autorun` ✓
+
+### Wire-format note
+`baseline` is the first additive field on `Document` since v1.0. Per the project's wire-format rule, `deserializeDocument` defaults it to current `content` when missing, so older Phase 1–9 records hydrate as "no diff yet" rather than being rejected. Storage's `serializeDocument` only emits `baseline` when it differs from `content`, so the persistent record stays small for the common no-edits case.
+
 ## [1.3.0] - 2026-05-09 — Phase 9: Round-trip (import + combined-markdown export)
 
 **Bundles features 4 + 10 from the post-v1 roadmap** (drag-and-drop import + single-combined-markdown export). Both touch the same wire format and were grouped to ship one round-trip surface.

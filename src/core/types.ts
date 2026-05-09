@@ -1,6 +1,13 @@
 export interface Document {
   content: string;
   updatedAt: number;
+  /**
+   * Optional baseline content used by the diff view. Set on workspace
+   * creation, import, and the explicit "Mark current as baseline" action.
+   * Older persisted records without a baseline default to the current
+   * content (effectively "no diff yet") via storage's deserializer.
+   */
+  baseline?: string;
 }
 
 export interface Feature {

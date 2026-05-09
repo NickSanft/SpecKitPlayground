@@ -1,6 +1,12 @@
+import { signal } from '@preact/signals';
 import { useState } from 'preact/hooks';
 import { downloadDocAsMarkdown } from '../core/export';
-import { activeDocContent, workspaceSignal } from '../core/state';
+import {
+  activeDocBaseline,
+  activeDocContent,
+  commitMarkActiveDocAsBaseline,
+  workspaceSignal,
+} from '../core/state';
 import type { ActiveDocId } from '../core/types';
 
 function activeDocFilename(id: ActiveDocId, workspace = workspaceSignal.value): string {
@@ -11,8 +17,18 @@ function activeDocFilename(id: ActiveDocId, workspace = workspaceSignal.value): 
   return `${dir}-${id.doc}.md`;
 }
 
+/** Editor pane mode — module-level so the diff toggle survives doc switches. */
+export type EditorMode = 'edit' | 'diff';
+export const editorMode = signal<EditorMode>('edit');
+
+export function setEditorMode(mode: EditorMode): void {
+  editorMode.value = mode;
+}
+
 export function DocActions() {
   const [copyState, setCopyState] = useState<'idle' | 'ok' | 'err'>('idle');
+  const mode = editorMode.value;
+  const activeHasDiff = activeDocBaseline.value !== activeDocContent.value;
 
   async function handleCopy() {
     try {
@@ -30,8 +46,37 @@ export function DocActions() {
     downloadDocAsMarkdown(filename, activeDocContent.value);
   }
 
+  function handleToggleDiff() {
+    setEditorMode(mode === 'diff' ? 'edit' : 'diff');
+  }
+
+  function handleMarkBaseline() {
+    commitMarkActiveDocAsBaseline();
+  }
+
   return (
     <div class="doc-actions" role="toolbar" aria-label="Document actions">
+      <button
+        type="button"
+        class={`doc-action ${mode === 'diff' ? 'is-active' : ''}`}
+        onClick={handleToggleDiff}
+        aria-pressed={mode === 'diff' ? 'true' : 'false'}
+        aria-label={mode === 'diff' ? 'Switch to edit view' : 'View diff against baseline'}
+        title={mode === 'diff' ? 'Switch to edit view' : 'View diff against baseline'}
+      >
+        {mode === 'diff' ? 'Editing view' : 'Diff'}
+      </button>
+      <button
+        type="button"
+        class="doc-action"
+        onClick={handleMarkBaseline}
+        disabled={!activeHasDiff}
+        aria-label="Mark current content as baseline"
+        title="Mark current content as the diff baseline"
+      >
+        Mark baseline
+      </button>
+      <span class="doc-actions-spacer" aria-hidden="true" />
       <button
         type="button"
         class="doc-action"

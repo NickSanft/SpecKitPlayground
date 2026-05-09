@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
-import { DocActions } from './components/DocActions';
+import { DiffView } from './components/DiffView';
+import { DocActions, editorMode } from './components/DocActions';
 import { DropZone } from './components/DropZone';
 import { Editor } from './components/Editor';
 import { ExportModal } from './components/ExportModal';
@@ -28,6 +29,7 @@ import { registerShortcuts, type ShortcutBinding } from './core/shortcuts';
 import {
   activeDocContent,
   activeDocLabel,
+  changedDocCount,
   commitAddFeature,
   commitUpdateActiveDocContent,
   lastSavedAt,
@@ -115,6 +117,15 @@ export function App() {
         <span class="app-doc-label" aria-live="polite">
           {activeDocLabel.value}
         </span>
+        {changedDocCount.value > 0 && (
+          <span
+            class="changed-pip"
+            title={`${changedDocCount.value} doc${changedDocCount.value === 1 ? '' : 's'} changed since baseline`}
+            aria-label={`${changedDocCount.value} docs changed since baseline`}
+          >
+            {changedDocCount.value} changed
+          </span>
+        )}
         <SaveStatus />
         <LintButton onOpen={openLint} />
         <button
@@ -152,11 +163,15 @@ export function App() {
         <section class="pane pane-editor">
           <FirstRunBanner onAddFeature={openNewFeature} />
           <DocActions />
-          <Editor
-            key={docKey}
-            initialDoc={activeDocContent.value}
-            onChange={commitUpdateActiveDocContent}
-          />
+          {editorMode.value === 'diff' ? (
+            <DiffView />
+          ) : (
+            <Editor
+              key={docKey}
+              initialDoc={activeDocContent.value}
+              onChange={commitUpdateActiveDocContent}
+            />
+          )}
         </section>
         <section class="pane pane-preview">
           <Preview source={activeDocContent.value} />
