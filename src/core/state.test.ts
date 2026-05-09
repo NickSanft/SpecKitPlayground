@@ -5,6 +5,7 @@ import {
   deleteFeature,
   getActiveDocContent,
   renameFeature,
+  renameWorkspace,
   setActiveDoc,
   updateActiveDocContent,
 } from './state';
@@ -189,6 +190,37 @@ describe('updateActiveDocContent', () => {
     const ws = createEmptyWorkspace();
     const same = updateActiveDocContent(ws, ws.constitution.content);
     expect(same).toBe(ws);
+  });
+});
+
+describe('renameWorkspace', () => {
+  it('updates the workspace name', () => {
+    const ws = createEmptyWorkspace('Old');
+    const renamed = renameWorkspace(ws, 'New Name');
+    expect(renamed.name).toBe('New Name');
+  });
+
+  it('trims whitespace from the input', () => {
+    const ws = createEmptyWorkspace('Old');
+    const renamed = renameWorkspace(ws, '   Trimmed   ');
+    expect(renamed.name).toBe('Trimmed');
+  });
+
+  it('rejects empty input as a no-op (same reference)', () => {
+    const ws = createEmptyWorkspace('Old');
+    expect(renameWorkspace(ws, '')).toBe(ws);
+    expect(renameWorkspace(ws, '   ')).toBe(ws);
+  });
+
+  it('returns the same reference when the trimmed name equals the current one', () => {
+    const ws = createEmptyWorkspace('Same');
+    expect(renameWorkspace(ws, '  Same  ')).toBe(ws);
+  });
+
+  it('does not change the workspace id', () => {
+    const ws = createEmptyWorkspace('Old');
+    const renamed = renameWorkspace(ws, 'New');
+    expect(renamed.id).toBe(ws.id);
   });
 });
 

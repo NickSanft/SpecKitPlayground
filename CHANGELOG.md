@@ -6,6 +6,62 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [1.1.0] - 2026-05-09 — Phase 7: Workspace identity
+
+First minor bump after v1.0. **Bundles features 2 + 3 from the post-v1 roadmap** (rename + multiple workspaces) because they share a storage migration — splitting them would have meant migrating twice.
+
+### Added
+- **Multiple workspaces.** Storage layout migrates from a single `spk:workspace:v1` to one record per workspace at `spk:workspaces:v2:<id>` plus a small `spk:workspaces:v2:index` referencing `{ active, ids }`. The migration is idempotent and runs on first hydrate; an unrecoverable v1 record is dropped rather than retried forever.
+- **Workspace switcher** in the header (`WorkspaceSwitcher.tsx`) — opens a popover listing other workspaces, with menu items for *Rename this workspace…*, *+ New workspace…*, and *Delete this workspace…*. Outside-click and Escape both dismiss the popover.
+- **Inline rename** for the active workspace name in the header. Clicking *Rename this workspace…* swaps the name button for an autofocused input. Enter commits, Escape reverts. Whitespace-only or unchanged values are no-ops.
+- **`commitCreateWorkspace` / `commitSwitchWorkspace` / `commitDeleteWorkspace` / `commitResetAllWorkspaces` / `commitRenameActiveWorkspace`** thunks. Each flushes or cancels the pending auto-save before swapping the active workspace, so an in-flight write to workspace A can't land after we've already switched to workspace B.
+- **Settings menu's "Reset workspace…" became "Delete all workspaces…"** — wipes every record and seeds a single fresh workspace. Per-workspace deletion now lives in the switcher; this is the nuclear option.
+- **`renameWorkspace` reducer** — pure, returns the same reference if the trimmed name is empty or unchanged.
+- **`migrateLegacyIfNeeded`, `reconcileOrphanRecords`, `clearAllWorkspaces`** in `src/core/storage.ts`. Records orphaned from a partial delete get cleaned up best-effort on every boot.
+- **`workspaceList` signal** + `listWorkspaceMetas()` for the switcher dropdown's contents.
+- **`data-saved-at` and `data-active-workspace` attributes** on the app shell so e2e tests can observe save commits and active-workspace changes deterministically.
+- **`tests/e2e/helpers.ts`** grows `snapshotSavedAt(page)` and `waitForSaveAfter(page, before)`. `replaceEditorContent` now waits for the save to commit before returning.
+- **`fake-indexeddb`** as a Vitest setup file, so storage-IO unit tests can exercise migration and reconciliation in node.
+
+### Fixed
+- **Index key collision with the record prefix.** `INDEX_KEY = 'spk:workspaces:v2:index'` shares the prefix `'spk:workspaces:v2:'` used for workspace records, so the original `reconcileOrphanRecords` was deleting the index every boot ("id" parsed from the key was the literal string `'index'`, which isn't a known workspace id). Found via an e2e regression where reload always cold-started a brand-new workspace; pinned with a unit test that asserts reconcile leaves the index alone.
+- **Race in the WorkspaceSwitcher's rename input.** A `useEffect` with `[renaming, active.name]` deps was re-resetting `draftName` to the current name whenever the signal triggered a re-render, racing with Playwright's `fill`. Removed the deps-driven reset; `useState(active.name)` already seeds the initial draft and the input becomes simply controlled.
+
+### Why it matters
+Multiple workspaces is the highest-leverage stretch goal — anyone maintaining specs for more than one project needed it. Rename comes along almost free once the storage layout supports it. This is the foundation every remaining roadmap phase (URL sharing, import, diff view, search) builds on, since they all need to know "which workspace are we operating on" without assuming there's only one.
+
+### Architecture
+- The pure reducers (`renameWorkspace`, etc.) live in `state.ts` next to the existing ones; the multi-workspace coordination (flush-then-switch, hydrate-and-fallback) lives in async thunks at the bottom of the same file. Tests stay split: pure reducers run with no IDB; thunks are exercised end-to-end in Playwright.
+- The auto-save effect's `flushSave` is now module-scoped so the switch/delete thunks can call `flushSave.flush()` (commit pending edits before switching) and `flushSave.cancel()` (drop pending edits before deleting). Without this, a 500 ms in-flight save could land after the workspace has changed and corrupt the wrong record.
+- Storage IO uses two-name namespaces via the `INDEX_KEY` and `RECORD_PREFIX` constants; the orphan-reconcile loop now explicitly skips `INDEX_KEY` to defend against the prefix collision documented above.
+
+### UX details
+- Switcher button shows the active workspace name with a small caret. The popover groups "Switch to" entries (only shown when there are >1 workspaces) above per-workspace actions.
+- Creating a workspace prompts for a name via `window.prompt` (smallest possible UX; can be replaced with a styled modal in a later polish phase if needed).
+- Deleting the last workspace doesn't leave the user stranded — a fresh seed is always created so the app always has somewhere to land.
+- Inline rename selects all text on focus so the user can type-to-replace.
+
+### Tests
+- Unit (Vitest, **126 passed**, +21): added 11 new storage tests covering legacy migration round-trip, dropping unrecoverable legacy data, listWorkspaceMetas ordering and missing-id skip, reconcileOrphanRecords (including the regression-pinning "doesn't delete the index even though the prefix collides" case), index round-trip, corrupted-index handling. Added 5 `renameWorkspace` reducer tests and 5 `deserializeIndex` defensive tests.
+- e2e (Playwright × Chromium + WebKit, **42 passed in CI**, +5): rename persists across reload; create + switch between two workspaces with content isolation; deleting the active workspace falls back to a remaining one; deleting the LAST workspace seeds a fresh empty one; the existing "Delete all workspaces" flow continues to work.
+
+### Bundle
+- App JS: **236.3 KB brotli** (limit: 350 KB) — +1.5 KB for the multi-workspace state, switcher, and migration code.
+- App CSS: **3.54 KB brotli** (limit: 20 KB) — +0.2 KB for the switcher popover and inline rename input styles.
+
+### Pre-push checklist
+- `tsc --noEmit` ✓
+- `eslint .` ✓
+- `prettier --check .` ✓
+- `vitest run` (126 passed) ✓
+- `vite build` ✓
+- `size-limit` (236.3 KB / 350 KB) ✓
+- `playwright test` × Chromium + WebKit (42 passed; Firefox local still has the Windows `spawn UNKNOWN` issue, runs in CI) ✓
+- `lhci autorun` (Performance 100, Accessibility 95, Best Practices 100, SEO 100) ✓
+
+### Wire-format note
+Per the project's wire-format rule, `deserializeIndex` is back-compat-defensive: missing `ids` returns null, non-string entries are dropped, an `active` that doesn't appear in `ids` falls back to the first id. The schema bump from v1 to v2 is shipped with the migration in this same phase, as required.
+
 ## [1.0.0] - 2026-05-08 — v1.0 cut
 
 The DoD checklist from IMPLEMENTATION_PLAN.md §11 is met. Every functional phase has shipped CI-green and tagged. This release closes the three v1.0 gaps that remained after Phase 6.

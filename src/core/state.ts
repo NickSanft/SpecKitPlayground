@@ -1,7 +1,18 @@
 import { computed, effect, signal } from '@preact/signals';
 import { debounce } from '../utils/debounce';
 import { slugify } from '../utils/slug';
-import { clearWorkspace, loadWorkspace, saveWorkspace } from './storage';
+import {
+  type WorkspaceMeta,
+  clearAllWorkspaces,
+  deleteWorkspaceRecord,
+  listWorkspaceMetas,
+  loadIndex,
+  loadWorkspaceById,
+  migrateLegacyIfNeeded,
+  reconcileOrphanRecords,
+  saveIndex,
+  saveWorkspace,
+} from './storage';
 import { getTemplate, templates } from './templates';
 import {
   type ActiveDocId,
@@ -128,6 +139,12 @@ export function updateActiveDocContent(workspace: Workspace, content: string): W
   return { ...workspace, features, updatedAt: at };
 }
 
+export function renameWorkspace(workspace: Workspace, newName: string): Workspace {
+  const trimmed = newName.trim();
+  if (trimmed.length === 0 || trimmed === workspace.name) return workspace;
+  return { ...workspace, name: trimmed, updatedAt: now() };
+}
+
 export function getActiveDocContent(workspace: Workspace): string {
   if (workspace.activeDocId.kind === 'constitution') {
     return workspace.constitution.content;
@@ -156,6 +173,7 @@ export const FEATURE_DOCS: readonly FeatureDocKind[] = FEATURE_DOC_KINDS;
 // without instantiating signals.
 
 export const workspaceSignal = signal<Workspace>(createEmptyWorkspace());
+export const workspaceList = signal<WorkspaceMeta[]>([]);
 export const activeDocContent = computed(() => getActiveDocContent(workspaceSignal.value));
 export const activeDocLabel = computed(() => getActiveDocLabel(workspaceSignal.value));
 
@@ -183,28 +201,34 @@ export function commitSetActiveDoc(next: ActiveDocId): void {
 export function commitUpdateActiveDocContent(content: string): void {
   workspaceSignal.value = updateActiveDocContent(workspaceSignal.value, content);
 }
-export function resetWorkspace(name?: string): void {
-  workspaceSignal.value = createEmptyWorkspace(name);
+export function commitRenameActiveWorkspace(newName: string): void {
+  const next = renameWorkspace(workspaceSignal.value, newName);
+  if (next === workspaceSignal.value) return;
+  workspaceSignal.value = next;
+  // List metas update on next refresh; do it eagerly so the switcher updates
+  // without waiting for the auto-save round-trip.
+  workspaceList.value = workspaceList.value.map((m) =>
+    m.id === next.id ? { ...m, name: next.name, updatedAt: next.updatedAt } : m,
+  );
 }
 
 let autoSaveStarted = false;
+const flushSave = debounce((ws: Workspace) => {
+  saveStatus.value = 'saving';
+  saveWorkspace(ws)
+    .then(() => {
+      saveStatus.value = 'saved';
+      lastSavedAt.value = Date.now();
+    })
+    .catch((err: unknown) => {
+      console.warn('saveWorkspace failed', err);
+      saveStatus.value = 'idle';
+    });
+}, 500);
 
 function startAutoSave(): void {
   if (autoSaveStarted) return;
   autoSaveStarted = true;
-
-  const flushSave = debounce((ws: Workspace) => {
-    saveStatus.value = 'saving';
-    saveWorkspace(ws)
-      .then(() => {
-        saveStatus.value = 'saved';
-        lastSavedAt.value = Date.now();
-      })
-      .catch((err: unknown) => {
-        console.warn('saveWorkspace failed', err);
-        saveStatus.value = 'idle';
-      });
-  }, 500);
 
   let isInitial = true;
   effect(() => {
@@ -217,19 +241,121 @@ function startAutoSave(): void {
   });
 }
 
+async function persistAndUpdateIndex(active: string, ids: readonly string[]): Promise<void> {
+  await saveIndex({ active, ids });
+}
+
+async function refreshWorkspaceList(): Promise<void> {
+  workspaceList.value = await listWorkspaceMetas();
+}
+
 export async function hydrateAndStartAutoSave(): Promise<void> {
-  const saved = await loadWorkspace();
-  if (saved) {
-    workspaceSignal.value = saved;
-    saveStatus.value = 'saved';
-    lastSavedAt.value = saved.updatedAt;
+  await migrateLegacyIfNeeded();
+
+  let idx = await loadIndex();
+  let active: Workspace | null = null;
+
+  if (idx) {
+    active = await loadWorkspaceById(idx.active);
+    if (!active && idx.ids.length > 0) {
+      // Active record is missing — fall back to the first valid one.
+      for (const candidate of idx.ids) {
+        const ws = await loadWorkspaceById(candidate);
+        if (ws) {
+          active = ws;
+          await persistAndUpdateIndex(ws.id, idx.ids);
+          idx = { active: ws.id, ids: idx.ids };
+          break;
+        }
+      }
+    }
   }
+
+  if (!active) {
+    // Cold start (or unrecoverable index): seed a fresh workspace.
+    active = createEmptyWorkspace();
+    await saveWorkspace(active);
+    await persistAndUpdateIndex(active.id, [active.id]);
+  }
+
+  workspaceSignal.value = active;
+  saveStatus.value = 'saved';
+  lastSavedAt.value = active.updatedAt;
+  await refreshWorkspaceList();
+  void reconcileOrphanRecords();
   startAutoSave();
 }
 
-export async function commitResetWorkspace(): Promise<void> {
-  await clearWorkspace();
-  workspaceSignal.value = createEmptyWorkspace();
-  saveStatus.value = 'idle';
-  lastSavedAt.value = null;
+export async function commitCreateWorkspace(name: string = 'New Workspace'): Promise<void> {
+  flushSave.flush();
+  const next = createEmptyWorkspace(name);
+  await saveWorkspace(next);
+  const idx = (await loadIndex()) ?? { active: next.id, ids: [] };
+  const ids = [...idx.ids, next.id];
+  await persistAndUpdateIndex(next.id, ids);
+  workspaceSignal.value = next;
+  saveStatus.value = 'saved';
+  lastSavedAt.value = next.updatedAt;
+  await refreshWorkspaceList();
+}
+
+export async function commitSwitchWorkspace(id: string): Promise<void> {
+  if (id === workspaceSignal.value.id) return;
+  flushSave.flush();
+  const target = await loadWorkspaceById(id);
+  if (!target) return;
+  const idx = (await loadIndex()) ?? { active: id, ids: [id] };
+  await persistAndUpdateIndex(id, idx.ids);
+  workspaceSignal.value = target;
+  saveStatus.value = 'saved';
+  lastSavedAt.value = target.updatedAt;
+  await refreshWorkspaceList();
+}
+
+export async function commitDeleteWorkspace(id: string): Promise<void> {
+  flushSave.cancel();
+  const idx = await loadIndex();
+  if (!idx) return;
+
+  const remaining = idx.ids.filter((x) => x !== id);
+  await deleteWorkspaceRecord(id);
+
+  if (remaining.length === 0) {
+    // Last workspace deleted — seed a fresh one so the app always has somewhere to land.
+    const fresh = createEmptyWorkspace();
+    await saveWorkspace(fresh);
+    await persistAndUpdateIndex(fresh.id, [fresh.id]);
+    workspaceSignal.value = fresh;
+    saveStatus.value = 'saved';
+    lastSavedAt.value = fresh.updatedAt;
+    await refreshWorkspaceList();
+    return;
+  }
+
+  // If we deleted the active one, switch to the first remaining; otherwise keep the active.
+  const nextActiveId = idx.active === id ? (remaining[0] ?? '') : workspaceSignal.value.id;
+  const nextActive = await loadWorkspaceById(nextActiveId);
+  await persistAndUpdateIndex(nextActiveId, remaining);
+  if (nextActive) {
+    workspaceSignal.value = nextActive;
+    saveStatus.value = 'saved';
+    lastSavedAt.value = nextActive.updatedAt;
+  }
+  await refreshWorkspaceList();
+}
+
+/**
+ * Nuke every saved workspace and start over from a fresh seed. Used by the
+ * "Delete all workspaces" action in the settings menu.
+ */
+export async function commitResetAllWorkspaces(): Promise<void> {
+  flushSave.cancel();
+  await clearAllWorkspaces();
+  const fresh = createEmptyWorkspace();
+  await saveWorkspace(fresh);
+  await persistAndUpdateIndex(fresh.id, [fresh.id]);
+  workspaceSignal.value = fresh;
+  saveStatus.value = 'saved';
+  lastSavedAt.value = fresh.updatedAt;
+  await refreshWorkspaceList();
 }

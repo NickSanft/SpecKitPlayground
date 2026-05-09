@@ -13,6 +13,7 @@ import { SaveStatus } from './components/SaveStatus';
 import { SettingsMenu } from './components/SettingsMenu';
 import { Sidebar } from './components/Sidebar';
 import { ThemeToggle } from './components/ThemeToggle';
+import { WorkspaceSwitcher } from './components/WorkspaceSwitcher';
 import {
   mobilePane,
   previewVisible,
@@ -26,6 +27,7 @@ import {
   activeDocLabel,
   commitAddFeature,
   commitUpdateActiveDocContent,
+  lastSavedAt,
   workspaceSignal,
 } from './core/state';
 import type { ActiveDocId } from './core/types';
@@ -94,9 +96,12 @@ export function App() {
       data-mobile-pane={mobile}
       data-sidebar={showSidebar ? 'open' : 'closed'}
       data-preview={showPreview ? 'open' : 'closed'}
+      data-saved-at={lastSavedAt.value ?? ''}
+      data-active-workspace={workspace.id}
     >
       <header class="app-header">
         <h1 class="app-title">Spec Kit Playground</h1>
+        <WorkspaceSwitcher />
         <span class="app-doc-label" aria-live="polite">
           {activeDocLabel.value}
         </span>

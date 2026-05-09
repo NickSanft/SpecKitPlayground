@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { replaceEditorContent } from './helpers';
+import { replaceEditorContent, snapshotSavedAt, waitForSaveAfter } from './helpers';
 
 test('app shell renders at the configured base path with constitution active', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
@@ -116,13 +116,7 @@ test('edits persist across a page reload via IndexedDB auto-save', async ({ page
   await page.getByRole('button', { name: 'Create' }).click();
 
   await replaceEditorContent(page, '# Persisted spec marker');
-
-  // Wait for auto-save (500ms debounce + write)
-  await expect(page.locator('.save-status')).toHaveAttribute('data-status', 'saved', {
-    timeout: 3000,
-  });
-
-  // Reload — IndexedDB persists across reloads in the same context
+  // replaceEditorContent waits for data-saved-at to advance, so the write is committed.
   await page.reload();
 
   await expect(page.locator('.tree-feature-dir')).toContainText('001-persisted-feature');
@@ -131,7 +125,7 @@ test('edits persist across a page reload via IndexedDB auto-save', async ({ page
   ).toContainText('Persisted spec marker');
 });
 
-test('reset clears the workspace and seeds a fresh constitution', async ({ page }) => {
+test('Delete all workspaces wipes IDB and seeds a fresh single workspace', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
   page.on('dialog', (dialog) => dialog.accept());
 
@@ -140,15 +134,99 @@ test('reset clears the workspace and seeds a fresh constitution', async ({ page 
   await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.locator('.tree-feature-dir')).toHaveCount(1);
 
-  // Open settings menu and reset
   await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByRole('menuitem', { name: 'Reset workspace…' }).click();
+  await page.getByRole('menuitem', { name: 'Delete all workspaces…' }).click();
 
   await expect(page.locator('.tree-feature-dir')).toHaveCount(0);
   await expect(page.locator('.tree-leaf.is-active')).toContainText('constitution.md');
 
-  // And the reset survives a reload (cleared from IndexedDB, not just memory)
   await page.reload();
+  await expect(page.locator('.tree-feature-dir')).toHaveCount(0);
+});
+
+test('renaming the workspace persists across reload', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+  const before = await snapshotSavedAt(page);
+
+  await page.locator('.workspace-name').click();
+  await page.getByRole('menuitem', { name: 'Rename this workspace…' }).click();
+
+  const input = page.locator('.workspace-rename-input');
+  await input.fill('Renamed Workspace');
+  await input.press('Enter');
+
+  await expect(page.locator('.workspace-name-text')).toHaveText('Renamed Workspace');
+  await waitForSaveAfter(page, before);
+
+  await page.reload();
+  await expect(page.locator('.workspace-name-text')).toHaveText('Renamed Workspace');
+});
+
+test('create + switch between two workspaces, content stays isolated', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+  page.on('dialog', async (dialog) => {
+    if (dialog.type() === 'prompt') await dialog.accept('Second Workspace');
+    else await dialog.accept();
+  });
+
+  // Edit the constitution in the default workspace so we have a marker.
+  // replaceEditorContent waits for the auto-save to commit before returning.
+  await replaceEditorContent(page, '# Workspace A constitution');
+
+  // Open switcher and create a new workspace.
+  await page.locator('.workspace-name').click();
+  await page.getByRole('menuitem', { name: '+ New workspace…' }).click();
+  await expect(page.locator('.workspace-name-text')).toHaveText('Second Workspace');
+
+  // The new workspace should be a fresh seed (constitution template), not Workspace A's.
+  await expect(
+    page.locator('.preview-body').getByRole('heading', { level: 1 }).first(),
+  ).not.toContainText('Workspace A constitution');
+
+  // Switch back to the first workspace via the switcher.
+  await page.locator('.workspace-name').click();
+  // The first workspace is named "My Project" by default.
+  await page.getByRole('menuitem', { name: 'My Project' }).click();
+  await expect(page.locator('.workspace-name-text')).toHaveText('My Project');
+  await expect(
+    page.locator('.preview-body').getByRole('heading', { level: 1 }).first(),
+  ).toContainText('Workspace A constitution');
+});
+
+test('deleting the active workspace falls back to a remaining one', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+  page.on('dialog', async (dialog) => {
+    if (dialog.type() === 'prompt') await dialog.accept('To Delete');
+    else await dialog.accept();
+  });
+
+  // Create a second workspace; we'll delete it and expect to land on the first.
+  await page.locator('.workspace-name').click();
+  await page.getByRole('menuitem', { name: '+ New workspace…' }).click();
+  await expect(page.locator('.workspace-name-text')).toHaveText('To Delete');
+
+  // Delete the active workspace.
+  await page.locator('.workspace-name').click();
+  await page.getByRole('menuitem', { name: 'Delete this workspace…' }).click();
+
+  // We should land on "My Project" (the original default).
+  await expect(page.locator('.workspace-name-text')).toHaveText('My Project');
+});
+
+test('deleting the LAST workspace seeds a fresh empty one', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+  page.on('dialog', (dialog) => dialog.accept());
+
+  // Add a feature so we can prove the post-delete workspace is fresh.
+  await page.getByRole('button', { name: '+ Add feature' }).click();
+  await page.locator('.modal-input').fill('Will Vanish');
+  await page.getByRole('button', { name: 'Create' }).click();
+
+  await page.locator('.workspace-name').click();
+  await page.getByRole('menuitem', { name: 'Delete this workspace…' }).click();
+
+  // Workspace is back to default name + zero features.
+  await expect(page.locator('.workspace-name-text')).toHaveText('My Project');
   await expect(page.locator('.tree-feature-dir')).toHaveCount(0);
 });
 

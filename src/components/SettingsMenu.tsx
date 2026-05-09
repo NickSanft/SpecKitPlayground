@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { commitResetWorkspace } from '../core/state';
+import { commitResetAllWorkspaces } from '../core/state';
 
 export function SettingsMenu() {
   const [open, setOpen] = useState(false);
@@ -21,16 +21,16 @@ export function SettingsMenu() {
     };
   }, [open]);
 
-  async function handleReset() {
+  async function handleResetAll() {
     if (
       !window.confirm(
-        'Reset workspace? This deletes the saved data in your browser and seeds a fresh constitution. This cannot be undone.',
+        'Delete ALL workspaces? This wipes every workspace stored in your browser and seeds a single fresh one. This cannot be undone.',
       )
     ) {
       setOpen(false);
       return;
     }
-    await commitResetWorkspace();
+    await commitResetAllWorkspaces();
     setOpen(false);
   }
 
@@ -54,9 +54,9 @@ export function SettingsMenu() {
               type="button"
               role="menuitem"
               class="settings-item settings-item-danger"
-              onClick={handleReset}
+              onClick={handleResetAll}
             >
-              Reset workspace…
+              Delete all workspaces…
             </button>
           </li>
         </ul>

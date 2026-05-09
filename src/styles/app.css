@@ -38,6 +38,117 @@ body {
   color: var(--fg-muted);
 }
 
+/* Workspace switcher */
+
+.workspace-switcher {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.workspace-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 10px;
+  border-radius: var(--radius-1);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.workspace-name:hover,
+.workspace-name[aria-expanded='true'] {
+  border-color: var(--border);
+  background: var(--bg-subtle);
+}
+
+.workspace-name-text {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-name-caret {
+  font-size: 0.625rem;
+  color: var(--fg-subtle);
+}
+
+.workspace-rename-input {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-1);
+  padding: 4px 10px;
+  outline: none;
+  min-width: 200px;
+}
+
+.workspace-popover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  z-index: 60;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workspace-popover ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.workspace-popover-section {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-1);
+  margin-bottom: var(--space-1);
+}
+
+.workspace-popover-label {
+  display: block;
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-subtle);
+}
+
+.workspace-popover-item {
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--fg);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-1);
+  background: transparent;
+}
+
+.workspace-popover-item:hover {
+  background: var(--bg-subtle);
+}
+
+.workspace-popover-item-danger {
+  color: var(--danger);
+}
+
 .save-status {
   font-family: var(--font-mono);
   font-size: 0.75rem;
