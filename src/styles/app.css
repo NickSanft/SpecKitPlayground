@@ -411,6 +411,69 @@ body {
   border: 1px solid rgba(185, 28, 28, 0.4);
 }
 
+/* Share modal */
+
+.share-url-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.share-url-input {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.share-warning {
+  font-size: 0.8125rem;
+  color: var(--fg);
+  background: rgba(180, 83, 9, 0.1);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-2);
+  padding: var(--space-3);
+  line-height: 1.5;
+}
+
+.share-stats {
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+}
+
+/* Import-from-share banner */
+
+.import-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--accent);
+  color: var(--fg);
+  font-size: 0.875rem;
+}
+
+.import-banner-body {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.import-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .import-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
 /* Lint button + panel */
 
 .header-lint {

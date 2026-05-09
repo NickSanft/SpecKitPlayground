@@ -6,6 +6,53 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [1.2.0] - 2026-05-09 — Phase 8: URL sharing
+
+### Added
+- **`src/core/share.ts`** — encode any workspace into a URL-safe, compressed token via `lz-string`'s `compressToEncodedURIComponent`, wrapped in a tiny `{ v: 1, ws: SerializedWorkspace }` envelope so the wire format is versionable. Exports:
+  - `encodeWorkspaceToShareToken(ws)` → string | null
+  - `decodeShareToken(token)` → Workspace | null (defends against garbage input, non-JSON payloads, mismatched envelope versions)
+  - `buildShareUrl(token, baseUrl?)` → URL with `#w=…` fragment
+  - `readShareFromLocation()` → reads the current `#w=` fragment
+  - `clearShareFromLocation()` → strips the fragment via `history.replaceState` (no reload, no scroll jump)
+- **Share button** in the header — opens `ShareModal.tsx` which auto-selects the URL field, has a Copy button (with transient "Copied" / "Copy failed" feedback), a privacy warning calling out that browser history / server logs / chat archives all see the URL contents, and a token-length stat with the ~8 K char URL-length advisory.
+- **`⌘⇧S`** keyboard shortcut → opens the share modal. Listed in the help modal alongside the other shortcuts.
+- **`ImportPreviewBanner.tsx`** — when the app boots with a `#w=…` fragment, the decoded workspace is staged in a `pendingSharedWorkspace` signal and the banner appears at the top of the shell. Shows the workspace name and feature count; user clicks **Import as new workspace** to materialise it (always lands as a fresh record with a new id, becomes the active workspace), or **Dismiss** to drop it. Either path strips the fragment from the URL.
+- **`commitCreateWorkspaceFromShared(shared, replaceActive)`** thunk in `src/core/state.ts`. Mints a new id and timestamps so the imported workspace doesn't collide with anything already saved under the original id. Goes through the same `flushSave.flush()` → `saveWorkspace` → `saveIndex` → switch-active path as `commitCreateWorkspace`.
+
+### Why it matters
+The most "tweetable" feature on the post-v1 roadmap. Anyone can paste a workspace into a chat, GitHub gist, or PR description without the recipient needing to install anything; they paste the URL and get a one-click import path. The privacy banner is upfront — the link IS the data, treat it as public.
+
+### Architecture
+- The fragment carries the entire workspace, never the index or other workspaces. One-workspace-per-URL keeps the share-a-snapshot model unambiguous.
+- The pending-import state lives at module level (`pendingSharedWorkspace` signal) rather than React state. That way `main.tsx` can populate it before the App ever renders, and the banner survives any number of unrelated re-renders without forgetting it.
+- `clearShareFromLocation` uses `history.replaceState` with the bare URL — no reload, no scroll jump, no entry added to history.
+- Decompression is wrapped in try/catch on every error path: garbage tokens, non-JSON payloads, version mismatches all return `null` rather than throwing.
+
+### UX details
+- The privacy warning uses the warning palette (amber border + soft amber background) so it reads as a callout, not a passive note.
+- Token-length stat is prefixed with the string `"Token length:"` and uses `toLocaleString()` for thousands separators.
+- The banner stacks vertically below 768 px so the buttons don't overflow on mobile.
+
+### Tests
+- Unit (Vitest, **135 passed**, +9): share-module round-trip on empty, multi-feature, and edited workspaces; URL-safe token character set; decode-of-empty/garbage/non-JSON returns null; envelope version sentinel; `buildShareUrl` formatting.
+- e2e (Playwright × Chromium + WebKit, **46 passed**, +4): share modal exposes a URL containing `#w=`; opening that URL in a fresh browser context shows the import banner with the correct workspace name; clicking Import imports the workspace, makes it active, and strips the fragment; clicking Dismiss closes the banner without importing and also strips the fragment.
+
+### Bundle
+- App JS: **238.3 KB brotli** (limit: 350 KB) — +2.0 KB for `lz-string` and the share/import code (lz-string is ~3 KB minified before compression-on-the-wire).
+- App CSS: **3.66 KB brotli** (limit: 20 KB) — +0.1 KB for the share modal and import banner.
+- Lighthouse unchanged: 100 / 95 / 100 / 100.
+
+### Pre-push checklist
+- `tsc --noEmit` ✓ (added `location`, `history`, `URLSearchParams` to ESLint globals)
+- `eslint .` ✓
+- `prettier --check .` ✓
+- `vitest run` (135 passed) ✓
+- `vite build` ✓
+- `size-limit` (238.3 KB / 350 KB) ✓
+- `playwright test` × Chromium + WebKit (46 passed; Firefox runs in CI) ✓
+- `lhci autorun` ✓
+
 ## [1.1.0] - 2026-05-09 — Phase 7: Workspace identity
 
 First minor bump after v1.0. **Bundles features 2 + 3 from the post-v1 roadmap** (rename + multiple workspaces) because they share a storage migration — splitting them would have meant migrating twice.

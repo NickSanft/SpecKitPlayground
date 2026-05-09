@@ -47,6 +47,9 @@ export default [
         cancelAnimationFrame: 'readonly',
         Node: 'readonly',
         EventTarget: 'readonly',
+        location: 'readonly',
+        history: 'readonly',
+        URLSearchParams: 'readonly',
       },
     },
     plugins: {

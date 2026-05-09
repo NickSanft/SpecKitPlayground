@@ -299,6 +299,33 @@ export async function commitCreateWorkspace(name: string = 'New Workspace'): Pro
   await refreshWorkspaceList();
 }
 
+/**
+ * Import a workspace decoded from a share token. Always lands as a fresh
+ * record with a new id (so it doesn't collide with whatever the user already
+ * has saved under the original id) and becomes the active workspace.
+ */
+export async function commitCreateWorkspaceFromShared(
+  shared: Workspace,
+  _replaceActive: boolean,
+): Promise<void> {
+  flushSave.flush();
+  const at = now();
+  const next: Workspace = {
+    ...shared,
+    id: newId(),
+    createdAt: at,
+    updatedAt: at,
+  };
+  await saveWorkspace(next);
+  const idx = (await loadIndex()) ?? { active: next.id, ids: [] };
+  const ids = [...idx.ids, next.id];
+  await persistAndUpdateIndex(next.id, ids);
+  workspaceSignal.value = next;
+  saveStatus.value = 'saved';
+  lastSavedAt.value = next.updatedAt;
+  await refreshWorkspaceList();
+}
+
 export async function commitSwitchWorkspace(id: string): Promise<void> {
   if (id === workspaceSignal.value.id) return;
   flushSave.flush();

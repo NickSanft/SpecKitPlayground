@@ -4,6 +4,7 @@ import { Editor } from './components/Editor';
 import { ExportModal } from './components/ExportModal';
 import { FirstRunBanner } from './components/FirstRunBanner';
 import { HelpModal } from './components/HelpModal';
+import { ImportPreviewBanner } from './components/ImportPreviewBanner';
 import { LintButton } from './components/LintButton';
 import { LintPanel } from './components/LintPanel';
 import { MobileTabBar } from './components/MobileTabBar';
@@ -11,6 +12,7 @@ import { NewFeatureModal } from './components/NewFeatureModal';
 import { Preview } from './components/Preview';
 import { SaveStatus } from './components/SaveStatus';
 import { SettingsMenu } from './components/SettingsMenu';
+import { ShareModal } from './components/ShareModal';
 import { Sidebar } from './components/Sidebar';
 import { ThemeToggle } from './components/ThemeToggle';
 import { WorkspaceSwitcher } from './components/WorkspaceSwitcher';
@@ -41,6 +43,7 @@ export function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [lintOpen, setLintOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const workspace = workspaceSignal.value;
   const docKey = activeDocKey(workspace.activeDocId);
@@ -48,6 +51,7 @@ export function App() {
   const openExport = () => setExportOpen(true);
   const openHelp = () => setHelpOpen(true);
   const openLint = () => setLintOpen(true);
+  const openShare = () => setShareOpen(true);
 
   const shortcuts: ShortcutBinding[] = [
     {
@@ -80,6 +84,11 @@ export function App() {
       description: 'Open lint panel',
       run: openLint,
     },
+    {
+      match: { key: 's', cmdOrCtrl: true, shift: true },
+      description: 'Share workspace as link',
+      run: openShare,
+    },
   ];
 
   useEffect(() => {
@@ -110,6 +119,14 @@ export function App() {
         <button
           type="button"
           class="btn btn-secondary header-export"
+          onClick={openShare}
+          aria-label="Share workspace as link"
+        >
+          Share
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary header-export"
           onClick={openExport}
           aria-label="Export workspace"
         >
@@ -127,6 +144,7 @@ export function App() {
         </button>
         <SettingsMenu />
       </header>
+      <ImportPreviewBanner />
       <main class="app-main">
         <Sidebar onAddFeature={openNewFeature} />
         <section class="pane pane-editor">
@@ -150,6 +168,7 @@ export function App() {
         />
       )}
       {exportOpen && <ExportModal workspace={workspace} onClose={() => setExportOpen(false)} />}
+      {shareOpen && <ShareModal workspace={workspace} onClose={() => setShareOpen(false)} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} shortcuts={shortcuts} />}
       {lintOpen && <LintPanel onClose={() => setLintOpen(false)} />}
     </div>

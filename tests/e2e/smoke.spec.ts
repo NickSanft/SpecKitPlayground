@@ -400,6 +400,71 @@ test('lint panel reports "No issues found" once everything is filled in', async 
   await expect(dialog).toContainText('No issues found');
 });
 
+test('share modal exposes a URL that another browser context can import', async ({
+  browser,
+  page,
+}) => {
+  await page.goto('/SpecKitPlayground/');
+
+  // Build a workspace with a marker so we can prove round-trip fidelity.
+  await page.locator('.workspace-name').click();
+  await page.getByRole('menuitem', { name: 'Rename this workspace…' }).click();
+  await page.locator('.workspace-rename-input').fill('Shared Project');
+  await page.locator('.workspace-rename-input').press('Enter');
+  await replaceEditorContent(page, '# Shared marker constitution');
+
+  // Open share modal and grab the URL
+  await page.getByRole('button', { name: 'Share workspace as link' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Share this workspace' });
+  await dialog.waitFor();
+  const url = await dialog.locator('.share-url-input').inputValue();
+  expect(url).toMatch(/#w=/);
+
+  await dialog.getByRole('button', { name: 'Close' }).click();
+
+  // Open the URL in a NEW context (fresh IndexedDB) — the import banner appears.
+  const ctx2 = await browser.newContext();
+  const page2 = await ctx2.newPage();
+  await page2.goto(url);
+
+  const banner = page2.locator('.import-banner');
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText('Shared Project');
+
+  // Accept the import; the workspace becomes the active one.
+  await banner.getByRole('button', { name: 'Import as new workspace' }).click();
+  await expect(banner).not.toBeVisible();
+  await expect(page2.locator('.workspace-name-text')).toHaveText('Shared Project');
+  await expect(
+    page2.locator('.preview-body').getByRole('heading', { level: 1 }).first(),
+  ).toContainText('Shared marker constitution');
+
+  // The URL fragment was stripped after import (so refresh doesn't re-prompt).
+  expect(page2.url()).not.toContain('#w=');
+
+  await ctx2.close();
+});
+
+test('share import banner can be dismissed without importing', async ({ browser, page }) => {
+  await page.goto('/SpecKitPlayground/');
+  await page.getByRole('button', { name: 'Share workspace as link' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Share this workspace' });
+  await dialog.waitFor();
+  const url = await dialog.locator('.share-url-input').inputValue();
+
+  const ctx2 = await browser.newContext();
+  const page2 = await ctx2.newPage();
+  await page2.goto(url);
+
+  const banner = page2.locator('.import-banner');
+  await expect(banner).toBeVisible();
+  await banner.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(banner).not.toBeVisible();
+  expect(page2.url()).not.toContain('#w=');
+
+  await ctx2.close();
+});
+
 test('raw HTML pasted into the editor is escaped, not rendered', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
   await replaceEditorContent(page, '<script>window.__pwned=true</script>');
