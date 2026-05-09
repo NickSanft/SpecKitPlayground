@@ -465,6 +465,56 @@ test('share import banner can be dismissed without importing', async ({ browser,
   await ctx2.close();
 });
 
+test('combined-md export round-trips back via DropZone import', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+
+  // Set up a recognisable workspace
+  await page.locator('.workspace-name').click();
+  await page.getByRole('menuitem', { name: 'Rename this workspace…' }).click();
+  await page.locator('.workspace-rename-input').fill('Round Trip MD');
+  await page.locator('.workspace-rename-input').press('Enter');
+  await replaceEditorContent(page, '# Round trip constitution');
+
+  // Switch to combined-md export and capture the downloaded contents
+  await page.getByRole('button', { name: 'Export workspace' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export workspace' });
+  await dialog.waitFor();
+  await dialog.getByText('Single combined .md').click();
+
+  const downloadPromise = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: /Download \.md/ }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('round-trip-md.md');
+
+  const downloadPath = await download.path();
+  expect(downloadPath).toBeTruthy();
+  const fs = await import('node:fs/promises');
+  const content = await fs.readFile(downloadPath!, 'utf8');
+  expect(content).toContain('<!-- spk:workspace name="Round Trip MD"');
+  expect(content).toContain('<!-- spk:constitution -->');
+  expect(content).toContain('Round trip constitution');
+
+  // Now drop the file back onto the app via the DataTransfer API
+  await page.evaluate(async (text) => {
+    const file = new File([text], 'round-trip-md.md', { type: 'text/markdown' });
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    const drop = new DragEvent('drop', { bubbles: true, dataTransfer: dt });
+    document.dispatchEvent(drop);
+  }, content);
+
+  const banner = page.locator('.import-banner');
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText('Round Trip MD');
+  await banner.getByRole('button', { name: 'Import as new workspace' }).click();
+
+  // The active workspace is now the imported copy with the preserved constitution
+  await expect(page.locator('.workspace-name-text')).toHaveText('Round Trip MD');
+  await expect(
+    page.locator('.preview-body').getByRole('heading', { level: 1 }).first(),
+  ).toContainText('Round trip constitution');
+});
+
 test('raw HTML pasted into the editor is escaped, not rendered', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
   await replaceEditorContent(page, '<script>window.__pwned=true</script>');

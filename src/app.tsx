@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { DocActions } from './components/DocActions';
+import { DropZone } from './components/DropZone';
 import { Editor } from './components/Editor';
 import { ExportModal } from './components/ExportModal';
 import { FirstRunBanner } from './components/FirstRunBanner';
@@ -145,6 +146,7 @@ export function App() {
         <SettingsMenu />
       </header>
       <ImportPreviewBanner />
+      <DropZone />
       <main class="app-main">
         <Sidebar onAddFeature={openNewFeature} />
         <section class="pane pane-editor">

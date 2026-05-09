@@ -16,7 +16,7 @@ startThemeEffect();
 
 const shared = readShareFromLocation();
 if (shared?.workspace) {
-  pendingSharedWorkspace.value = shared.workspace;
+  pendingSharedWorkspace.value = { workspace: shared.workspace, source: 'url' };
 }
 
 void hydrateAndStartAutoSave().finally(() => {

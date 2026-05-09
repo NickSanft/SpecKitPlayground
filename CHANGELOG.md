@@ -6,6 +6,66 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [1.3.0] - 2026-05-09 — Phase 9: Round-trip (import + combined-markdown export)
+
+**Bundles features 4 + 10 from the post-v1 roadmap** (drag-and-drop import + single-combined-markdown export). Both touch the same wire format and were grouped to ship one round-trip surface.
+
+### Added
+- **Combined-markdown format** — a single `.md` file containing the whole workspace, delimited by HTML-comment markers that don't render in markdown previews but are machine-readable:
+  ```
+  <!-- spk:workspace name="My Project" v="1" -->
+  <!-- spk:constitution -->
+  ...
+  <!-- spk:feature number="1" slug="auth" title="Auth" doc="spec" -->
+  ...
+  ```
+  Attribute values are JSON-encoded so quotes, backslashes, and unicode survive round-trip.
+- **`buildCombinedMarkdown(workspace, options)`** in `src/core/export.ts` — produces the format above. Respects `includeEmptyFeatures` (templates folder option doesn't apply since the format is self-contained).
+- **`Single combined .md`** as a new format option in `ExportModal.tsx`. The modal now has two `<fieldset>`s — Format (zip vs combined-md) and Contents (templates / empty features), with templates greyed out for combined-md since it's not applicable.
+- **`src/core/import.ts`** — pure parsers that turn external files back into a `Workspace`:
+  - `parseCombinedMarkdown(text)` — walks the marker stream, accumulates per-doc bodies, returns null when no markers are present, fills missing feature docs with template content. CRLF-tolerant.
+  - `parseSpecifyZip(file)` — walks a JSZip-loaded archive, accepts both root-level `.specify/` and zips nested under a wrapper directory, derives a Title-Cased title from the directory slug. Returns null when neither a constitution nor any feature docs are found.
+  - `importFromFile(file)` — best-effort dispatch by extension/MIME, falling back to text/markdown.
+- **`DropZone.tsx`** — full-app drag-and-drop overlay listening on `document` for `dragenter`/`dragleave`/`dragover`/`drop`. Uses an enter/leave counter so the overlay stays visible across nested elements. On drop, parses the file via `importFromFile` and stages the result in `pendingSharedWorkspace`. A transient error toast shows for 5 s on parse failure.
+- **`pendingSharedWorkspace` extended** to carry an `ImportSource` (`'url' | 'zip' | 'combined-md'`). The same `ImportPreviewBanner` now renders for all three sources with source-specific intro copy. Only the URL source strips the location fragment on import/dismiss.
+- **`commitCreateWorkspaceFromShared`** continues to be the import sink — mints fresh ids and timestamps regardless of source so imports never collide with existing IDB records.
+
+### Why it matters
+Closes the round-trip loop. Phase 4 added export; Phase 8 added URL sharing for short snapshots; this phase makes the in/out paths symmetric. You can hit Export → "Single combined .md", paste the markdown into a chat or gist, then drop it back onto the app on another machine and pick up where you left off — no zip tooling required.
+
+### Architecture
+- The combined-md format is a wire format; the marker grammar is documented in `export.ts` and parser is in `import.ts`. Attributes use JSON-encoded values so the format is unambiguous about quoting.
+- Drop handling lives in a single component bound to `document`-level events, not a per-element drop target. This means the user can drop anywhere on the page, including over an open modal, and the import flow takes over.
+- `parseSpecifyZip` does a two-pass walk (dirs first, then files) so a feature directory's slug is registered even when the spec/plan/tasks files are absent — robust against partial exports.
+- All parsers go through `deserializeWorkspace`-style defenses: malformed input returns `null` rather than throwing.
+
+### UX details
+- The drop overlay is dimmed-backdrop + dashed-accent card so it's unmistakable when the user drags a file over the page.
+- Export modal hides the file-tree preview when the combined-md format is selected (no tree to show).
+- Combined-md exported files have HTML-comment markers that gracefully degrade in any markdown viewer — they show as nothing in the rendered preview but are still there in the source.
+
+### Tests
+- Unit (Vitest, **146 passed**, +11): combined-md round-trip on multi-feature workspaces; numbering preservation across deletions; special-character escaping (`"` and `&`); null-on-no-markers; missing feature docs filled with templates; invalid feature attrs dropped; CRLF tolerance; zip round-trip via JSZip; null-on-empty-zip; nested-`.specify/` in wrappers; Title-Case title derivation from slug.
+- e2e (Playwright × Chromium + WebKit, **48 passed**, +1): combined-md export downloads a file with the expected markers; that file dropped back onto the app via a synthetic `DragEvent` shows the import banner; importing it lands the workspace as active with the constitution preserved.
+
+### Bundle
+- App JS: **240.0 KB brotli** (limit: 350 KB) — +1.7 KB for the import module + DropZone + ExportModal format toggle. JSZip was already loaded for the zip export path; no new heavy deps.
+- App CSS: **3.79 KB brotli** (limit: 20 KB) — +0.1 KB for the drop overlay and error toast.
+- Lighthouse unchanged: 100 / 95 / 100 / 100.
+
+### Pre-push checklist
+- `tsc --noEmit` ✓ (added `DragEvent`, `File` to ESLint globals)
+- `eslint .` ✓
+- `prettier --check .` ✓
+- `vitest run` (146 passed) ✓
+- `vite build` ✓
+- `size-limit` (240.0 KB / 350 KB) ✓
+- `playwright test` × Chromium + WebKit (48 passed; Firefox runs in CI) ✓
+- `lhci autorun` ✓
+
+### Wire-format note
+Per the project's wire-format rule, both `parseCombinedMarkdown` and `parseSpecifyZip` are back-compat-defensive: they return `null` (not throw) on unparseable input, fill missing fields with template defaults, and drop entries with invalid number/slug/doc rather than failing the whole import. The combined-markdown format is versioned with `v="1"` in the workspace marker so future schema bumps can be detected and handled.
+
 ## [1.2.0] - 2026-05-09 — Phase 8: URL sharing
 
 ### Added

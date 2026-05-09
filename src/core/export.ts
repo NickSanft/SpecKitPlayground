@@ -8,6 +8,8 @@ export interface ExportOptions {
   includeEmptyFeatures: boolean;
 }
 
+export type ExportFormat = 'zip' | 'combined-md';
+
 export const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
   includeTemplates: true,
   includeEmptyFeatures: false,
@@ -127,9 +129,57 @@ export async function buildZip(workspace: Workspace, options: ExportOptions): Pr
   return await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
 }
 
-export function workspaceFilename(workspace: Workspace): string {
+export function workspaceFilename(workspace: Workspace, format: ExportFormat = 'zip'): string {
   const slug = slugify(workspace.name);
-  return `${slug || 'spec-kit-workspace'}.zip`;
+  const base = slug || 'spec-kit-workspace';
+  return format === 'zip' ? `${base}.zip` : `${base}.md`;
+}
+
+/* Combined-markdown format
+ *
+ * One file containing the whole workspace, delimited by HTML-comment
+ * markers that don't render in markdown previews but are machine-readable
+ * for round-trip. Marker syntax:
+ *
+ *   <!-- spk:workspace name="..." v="1" -->
+ *   <!-- spk:constitution -->
+ *   ...constitution body...
+ *   <!-- spk:feature number="1" slug="..." title="..." doc="spec" -->
+ *   ...spec body...
+ *   ...
+ */
+
+const COMBINED_VERSION = '1';
+
+function escapeAttr(value: string): string {
+  return JSON.stringify(value);
+}
+
+export function buildCombinedMarkdown(workspace: Workspace, options: ExportOptions): string {
+  const out: string[] = [];
+  out.push(
+    `<!-- spk:workspace name=${escapeAttr(workspace.name)} v=${escapeAttr(COMBINED_VERSION)} -->`,
+  );
+  out.push('');
+  out.push('<!-- spk:constitution -->');
+  out.push('');
+  out.push(workspace.constitution.content.trimEnd());
+
+  for (const feature of workspace.features) {
+    if (!options.includeEmptyFeatures && isFeatureEmpty(feature)) continue;
+    for (const doc of ['spec', 'plan', 'tasks'] as const) {
+      out.push('');
+      out.push(
+        `<!-- spk:feature number=${escapeAttr(String(feature.number))} slug=${escapeAttr(
+          feature.slug,
+        )} title=${escapeAttr(feature.title)} doc=${escapeAttr(doc)} -->`,
+      );
+      out.push('');
+      out.push(feature[doc].content.trimEnd());
+    }
+  }
+
+  return out.join('\n') + '\n';
 }
 
 export function triggerBlobDownload(blob: Blob, filename: string): void {

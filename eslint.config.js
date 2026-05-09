@@ -50,6 +50,8 @@ export default [
         location: 'readonly',
         history: 'readonly',
         URLSearchParams: 'readonly',
+        DragEvent: 'readonly',
+        File: 'readonly',
       },
     },
     plugins: {
