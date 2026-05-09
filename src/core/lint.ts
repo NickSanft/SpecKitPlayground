@@ -206,9 +206,14 @@ export function getRules(): readonly Rule[] {
   return rules;
 }
 
+export function isRuleEnabled(workspace: Workspace, ruleId: string): boolean {
+  return !workspace.lintConfig?.disabled.includes(ruleId);
+}
+
 export function lintWorkspace(workspace: Workspace): Diagnostic[] {
   const out: Diagnostic[] = [];
   for (const rule of rules) {
+    if (!isRuleEnabled(workspace, rule.id)) continue;
     out.push(...rule.check(workspace));
   }
   return out;

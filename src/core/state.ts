@@ -180,6 +180,19 @@ export function markAllDocsAsBaseline(workspace: Workspace): Workspace {
   return { ...workspace, constitution, features };
 }
 
+export function setLintRuleEnabled(
+  workspace: Workspace,
+  ruleId: string,
+  enabled: boolean,
+): Workspace {
+  const current = workspace.lintConfig?.disabled ?? [];
+  const isDisabled = current.includes(ruleId);
+  if (enabled && !isDisabled) return workspace;
+  if (!enabled && isDisabled) return workspace;
+  const disabled = enabled ? current.filter((id) => id !== ruleId) : [...current, ruleId];
+  return { ...workspace, lintConfig: { disabled }, updatedAt: now() };
+}
+
 export function renameWorkspace(workspace: Workspace, newName: string): Workspace {
   const trimmed = newName.trim();
   if (trimmed.length === 0 || trimmed === workspace.name) return workspace;
@@ -274,6 +287,9 @@ export function commitUpdateActiveDocContent(content: string): void {
 }
 export function commitMarkActiveDocAsBaseline(): void {
   workspaceSignal.value = markActiveDocAsBaseline(workspaceSignal.value);
+}
+export function commitSetLintRuleEnabled(ruleId: string, enabled: boolean): void {
+  workspaceSignal.value = setLintRuleEnabled(workspaceSignal.value, ruleId, enabled);
 }
 export function commitMarkAllAsBaseline(): void {
   workspaceSignal.value = markAllDocsAsBaseline(workspaceSignal.value);

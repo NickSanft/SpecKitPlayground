@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { diagnosticCounts, getRules, lintWorkspace } from './lint';
-import { addFeature, createEmptyWorkspace, setActiveDoc, updateActiveDocContent } from './state';
+import {
+  addFeature,
+  createEmptyWorkspace,
+  setActiveDoc,
+  setLintRuleEnabled,
+  updateActiveDocContent,
+} from './state';
 describe('rule registry', () => {
   it('exposes a non-empty pluggable rule set', () => {
     const rules = getRules();
@@ -135,6 +141,24 @@ describe('feature-untouched', () => {
     ws = updateActiveDocContent(ws, '# my spec body');
     const ds = lintWorkspace(ws);
     expect(ds.find((d) => d.ruleId === 'feature-untouched')).toBeUndefined();
+  });
+});
+
+describe('lint config', () => {
+  it('skips diagnostics from rules disabled in lintConfig', () => {
+    const ws = createEmptyWorkspace();
+    expect(lintWorkspace(ws).some((d) => d.ruleId === 'constitution-not-default')).toBe(true);
+    const disabled = setLintRuleEnabled(ws, 'constitution-not-default', false);
+    expect(lintWorkspace(disabled).some((d) => d.ruleId === 'constitution-not-default')).toBe(
+      false,
+    );
+  });
+
+  it('re-enabling a rule brings its diagnostics back', () => {
+    let ws = createEmptyWorkspace();
+    ws = setLintRuleEnabled(ws, 'constitution-not-default', false);
+    ws = setLintRuleEnabled(ws, 'constitution-not-default', true);
+    expect(lintWorkspace(ws).some((d) => d.ruleId === 'constitution-not-default')).toBe(true);
   });
 });
 

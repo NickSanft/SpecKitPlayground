@@ -6,6 +6,51 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [1.6.0] - 2026-05-09 — Phase 12: Configurable lint rules
+
+### Added
+- **`Workspace.lintConfig: { disabled: string[] }`** field, optional. Older v1.0–v1.5 records hydrate with no `lintConfig` (= all rules enabled), so this is purely additive on the wire format.
+- **`isRuleEnabled(workspace, ruleId)`** helper in `lint.ts`. `lintWorkspace` now skips disabled rules entirely — they don't run, don't produce diagnostics, and don't count towards the header pip.
+- **`setLintRuleEnabled(workspace, ruleId, enabled)`** pure reducer. Reference-stable when nothing actually changes; never double-adds the same rule to the disabled list.
+- **`commitSetLintRuleEnabled(ruleId, enabled)`** thunk; auto-save persists the change like any other workspace mutation.
+- **Configure tab** in `LintPanel.tsx` — split into a Diagnostics view and a Configure view via `role="tablist"`. The Configure view lists every rule with its description and a checkbox; toggling commits immediately. The Diagnostics tab shows a count badge in its label so the user can see the impact at a glance.
+- **Storage round-trip** for `lintConfig`: persisted only when at least one rule is disabled, so the wire format stays minimal in the common case. Defensive `deserializeLintConfig` drops non-string entries and returns `undefined` for empty / malformed input.
+
+### Why it matters
+Phase 6's six rules are heuristics, not laws. The `feature-untouched` rule is genuinely useful for solo workflows but noise for "I'm reviewing someone else's spec"; `needs-clarification` matters before export but distracting while drafting. Per-workspace toggles let users keep rules that match the work they're doing without the noise of rules that don't.
+
+### Architecture
+- **The wire format only persists what diverges from default.** `serializeWorkspace` omits `lintConfig` entirely when no rules are disabled. `deserializeLintConfig` returns `undefined` for the default case. No "explicit empty array" overhead.
+- **The rule registry stays a constant** — disabling a rule doesn't unregister it; it's a per-workspace filter on top of the same global rule set. Means rules can come and go across versions without invalidating workspace data.
+- **The Configure view is a sibling tab in the same panel**, not a separate modal. Keeps the path "see diagnostic → click Configure → toggle → see effect" one click away.
+
+### UX details
+- The Diagnostics tab label shows `(N)` when there are issues, so the user sees both tabs and the count without having to switch.
+- Each Configure row uses a labeled checkbox with the rule id (mono) above the human description (sans). Aria label reads as "Disable rule X" or "Enable rule X" depending on current state.
+- Disabled rules have no visual representation in the diagnostics list at all — no greyed-out row, no "Hidden by config" footer. Off means off.
+
+### Tests
+- Unit (Vitest, **176 passed**, +8): `setLintRuleEnabled` covers add, remove, no-op same-reference, no double-add. `lintWorkspace` covers respecting and re-enabling rule config. Storage covers `lintConfig` round-trip and the omit-when-empty wire-format invariant.
+- e2e (Playwright × Chromium + WebKit, **54 passed**, +1): add an unedited feature so multiple diagnostics fire, capture the initial pip count, switch to Configure, disable `feature-untouched`, switch back to Diagnostics, verify the disabled rule's diagnostic is gone but other rules' diagnostics remain, close the modal, assert the pip count dropped by exactly 1.
+
+### Bundle
+- App JS: **242.4 KB brotli** (limit: 350 KB) — +0.5 KB for the config UI and reducer.
+- App CSS: **4.50 KB brotli** (limit: 20 KB) — +0.2 KB for tabs and the rule-toggle list.
+- Lighthouse unchanged: 100 / 95 / 100 / 100.
+
+### Pre-push checklist
+- `tsc --noEmit` ✓
+- `eslint .` ✓
+- `prettier --check .` ✓
+- `vitest run` (176 passed) ✓
+- `vite build` ✓
+- `size-limit` (242.4 KB / 350 KB) ✓
+- `playwright test` × Chromium + WebKit (54 passed; Firefox runs in CI) ✓
+- `lhci autorun` ✓
+
+### Wire-format note
+`lintConfig` is the second additive field on `Workspace` since v1.0 (the first was `Document.baseline` in v1.4.0). Per the project's wire-format rule, `deserializeWorkspace` returns a workspace with `lintConfig` undefined when missing/invalid, which means all rules are enabled by default — same behaviour Phase 6 shipped. Storage's `serializeWorkspace` only emits `lintConfig` when at least one rule is disabled.
+
 ## [1.5.0] - 2026-05-09 — Phase 11: Search across docs
 
 ### Added

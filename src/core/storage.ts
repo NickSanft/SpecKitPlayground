@@ -40,6 +40,10 @@ interface SerializedFeature {
   createdAt: number;
 }
 
+interface SerializedLintConfig {
+  disabled: string[];
+}
+
 interface SerializedWorkspace {
   schemaVersion: 1;
   id: string;
@@ -49,6 +53,7 @@ interface SerializedWorkspace {
   constitution: SerializedDocument;
   features: SerializedFeature[];
   activeDocId: Workspace['activeDocId'];
+  lintConfig?: SerializedLintConfig;
 }
 
 interface SerializedIndex {
@@ -66,7 +71,7 @@ function serializeDocument(doc: Document): SerializedDocument {
 }
 
 export function serializeWorkspace(ws: Workspace): SerializedWorkspace {
-  return {
+  const out: SerializedWorkspace = {
     schemaVersion: 1,
     id: ws.id,
     name: ws.name,
@@ -85,6 +90,10 @@ export function serializeWorkspace(ws: Workspace): SerializedWorkspace {
     })),
     activeDocId: ws.activeDocId,
   };
+  if (ws.lintConfig && ws.lintConfig.disabled.length > 0) {
+    out.lintConfig = { disabled: [...ws.lintConfig.disabled] };
+  }
+  return out;
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -149,6 +158,15 @@ function deserializeActiveDocId(
   return { kind: 'constitution' };
 }
 
+function deserializeLintConfig(raw: unknown): Workspace['lintConfig'] {
+  if (!isObject(raw)) return undefined;
+  const list = raw['disabled'];
+  if (!Array.isArray(list)) return undefined;
+  const disabled = list.filter((id): id is string => typeof id === 'string' && id.length > 0);
+  if (disabled.length === 0) return undefined;
+  return { disabled };
+}
+
 export function deserializeWorkspace(raw: unknown): Workspace | null {
   if (!isObject(raw)) return null;
   const id = asString(raw['id'], '');
@@ -160,7 +178,7 @@ export function deserializeWorkspace(raw: unknown): Workspace | null {
     .map((f) => deserializeFeature(f, now))
     .filter((f): f is Feature => f !== null);
 
-  return {
+  const ws: Workspace = {
     id,
     name: asString(raw['name'], 'My Project'),
     createdAt: asNumber(raw['createdAt'], now),
@@ -169,6 +187,9 @@ export function deserializeWorkspace(raw: unknown): Workspace | null {
     features,
     activeDocId: deserializeActiveDocId(raw['activeDocId'], features),
   };
+  const lintConfig = deserializeLintConfig(raw['lintConfig']);
+  if (lintConfig) ws.lintConfig = lintConfig;
+  return ws;
 }
 
 export function deserializeIndex(raw: unknown): WorkspaceIndex | null {

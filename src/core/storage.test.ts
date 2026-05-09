@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { clear, get, set } from 'idb-keyval';
-import { addFeature, createEmptyWorkspace } from './state';
+import { addFeature, createEmptyWorkspace, setLintRuleEnabled } from './state';
 import {
   INDEX_KEY,
   LEGACY_STORAGE_KEY,
@@ -30,6 +30,20 @@ describe('serializeWorkspace + deserializeWorkspace', () => {
     ws = addFeature(ws, 'two');
     const back = deserializeWorkspace(serializeWorkspace(ws));
     expect(back).toEqual(ws);
+  });
+
+  it('round-trips lintConfig.disabled when non-empty', () => {
+    let ws = createEmptyWorkspace();
+    ws = setLintRuleEnabled(ws, 'placeholders-remain', false);
+    ws = setLintRuleEnabled(ws, 'tasks-has-checkboxes', false);
+    const back = deserializeWorkspace(serializeWorkspace(ws));
+    expect(back?.lintConfig?.disabled).toEqual(['placeholders-remain', 'tasks-has-checkboxes']);
+  });
+
+  it('omits lintConfig from the wire format when no rules are disabled', () => {
+    const ws = createEmptyWorkspace();
+    const serialized = serializeWorkspace(ws) as { lintConfig?: unknown };
+    expect(serialized.lintConfig).toBeUndefined();
   });
 
   it('survives going through JSON.stringify (structured-clone-equivalent path)', () => {

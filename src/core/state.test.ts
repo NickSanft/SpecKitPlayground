@@ -7,6 +7,7 @@ import {
   renameFeature,
   renameWorkspace,
   setActiveDoc,
+  setLintRuleEnabled,
   updateActiveDocContent,
 } from './state';
 import { templates } from './templates';
@@ -221,6 +222,35 @@ describe('renameWorkspace', () => {
     const ws = createEmptyWorkspace('Old');
     const renamed = renameWorkspace(ws, 'New');
     expect(renamed.id).toBe(ws.id);
+  });
+});
+
+describe('setLintRuleEnabled', () => {
+  it('disables a rule by adding it to lintConfig.disabled', () => {
+    const ws = createEmptyWorkspace();
+    const after = setLintRuleEnabled(ws, 'placeholders-remain', false);
+    expect(after.lintConfig?.disabled).toEqual(['placeholders-remain']);
+  });
+
+  it('re-enables a rule by removing it from lintConfig.disabled', () => {
+    let ws = createEmptyWorkspace();
+    ws = setLintRuleEnabled(ws, 'placeholders-remain', false);
+    ws = setLintRuleEnabled(ws, 'placeholders-remain', true);
+    expect(ws.lintConfig?.disabled ?? []).toEqual([]);
+  });
+
+  it('returns the same reference if the toggle is a no-op', () => {
+    const ws = createEmptyWorkspace();
+    expect(setLintRuleEnabled(ws, 'never-disabled', true)).toBe(ws);
+    let modified = setLintRuleEnabled(ws, 'placeholders-remain', false);
+    expect(setLintRuleEnabled(modified, 'placeholders-remain', false)).toBe(modified);
+  });
+
+  it('does not double-add the same rule when called twice', () => {
+    let ws = createEmptyWorkspace();
+    ws = setLintRuleEnabled(ws, 'r', false);
+    ws = setLintRuleEnabled(ws, 'r', false);
+    expect(ws.lintConfig?.disabled).toEqual(['r']);
   });
 });
 

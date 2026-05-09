@@ -579,6 +579,45 @@ test('search panel finds matches across docs and clicking a result navigates', a
   await expect(page.locator('.tree-leaf.is-active')).toContainText('spec.md');
 });
 
+test('disabling a lint rule via Configure removes its diagnostics + drops the pip', async ({
+  page,
+}) => {
+  await page.goto('/SpecKitPlayground/');
+  page.on('dialog', (dialog) => dialog.accept());
+
+  // Add an empty feature so we trip BOTH constitution-not-default AND feature-untouched.
+  await page.getByRole('button', { name: '+ Add feature' }).click();
+  await page.locator('.modal-input').fill('Untouched');
+  await page.getByRole('button', { name: 'Create' }).click();
+
+  await page.getByRole('button', { name: /Open lint panel/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Workspace lint' });
+  await dialog.waitFor();
+
+  // Both diagnostics we care about are present at first
+  await expect(dialog).toContainText('Constitution is still the unedited template');
+  await expect(dialog).toContainText('Feature "Untouched" has no content yet');
+
+  // Capture the initial pip count so we can assert it strictly drops by 1 after disabling.
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  const initialPip = Number(await page.locator('.lint-pip').textContent());
+  expect(initialPip).toBeGreaterThanOrEqual(2);
+
+  // Re-open the panel and disable feature-untouched via Configure.
+  await page.getByRole('button', { name: /Open lint panel/ }).click();
+  await dialog.getByRole('tab', { name: 'Configure' }).click();
+  await dialog.getByRole('checkbox', { name: /Disable rule feature-untouched/ }).uncheck();
+
+  // Switch back to Diagnostics — feature-untouched is gone, constitution-not-default still shows.
+  await dialog.getByRole('tab', { name: /Diagnostics/ }).click();
+  await expect(dialog).not.toContainText('Feature "Untouched" has no content yet');
+  await expect(dialog).toContainText('Constitution is still the unedited template');
+
+  // Close the modal and verify the pip dropped by exactly 1.
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await expect(page.locator('.lint-pip')).toHaveText(String(initialPip - 1));
+});
+
 test('raw HTML pasted into the editor is escaped, not rendered', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
   await replaceEditorContent(page, '<script>window.__pwned=true</script>');

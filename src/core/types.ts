@@ -27,6 +27,11 @@ export type ActiveDocId =
   | { kind: 'constitution' }
   | { kind: 'feature'; featureId: string; doc: FeatureDocKind };
 
+export interface LintConfig {
+  /** Rule ids the user has disabled in this workspace. */
+  disabled: readonly string[];
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -35,6 +40,8 @@ export interface Workspace {
   constitution: Document;
   features: Feature[];
   activeDocId: ActiveDocId;
+  /** Optional. Older v1.0–v1.5 records hydrate with `{disabled: []}`. */
+  lintConfig?: LintConfig;
 }
 
 export interface FeatureDocLocator {
