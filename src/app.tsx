@@ -13,6 +13,7 @@ import { MobileTabBar } from './components/MobileTabBar';
 import { NewFeatureModal } from './components/NewFeatureModal';
 import { Preview } from './components/Preview';
 import { SaveStatus } from './components/SaveStatus';
+import { SearchPanel } from './components/SearchPanel';
 import { SettingsMenu } from './components/SettingsMenu';
 import { ShareModal } from './components/ShareModal';
 import { Sidebar } from './components/Sidebar';
@@ -47,6 +48,7 @@ export function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [lintOpen, setLintOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const workspace = workspaceSignal.value;
   const docKey = activeDocKey(workspace.activeDocId);
@@ -55,6 +57,7 @@ export function App() {
   const openHelp = () => setHelpOpen(true);
   const openLint = () => setLintOpen(true);
   const openShare = () => setShareOpen(true);
+  const openSearch = () => setSearchOpen(true);
 
   const shortcuts: ShortcutBinding[] = [
     {
@@ -91,6 +94,11 @@ export function App() {
       match: { key: 's', cmdOrCtrl: true, shift: true },
       description: 'Share workspace as link',
       run: openShare,
+    },
+    {
+      match: { key: 'f', cmdOrCtrl: true, shift: true },
+      description: 'Search across docs',
+      run: openSearch,
     },
   ];
 
@@ -186,6 +194,7 @@ export function App() {
       )}
       {exportOpen && <ExportModal workspace={workspace} onClose={() => setExportOpen(false)} />}
       {shareOpen && <ShareModal workspace={workspace} onClose={() => setShareOpen(false)} />}
+      {searchOpen && <SearchPanel onClose={() => setSearchOpen(false)} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} shortcuts={shortcuts} />}
       {lintOpen && <LintPanel onClose={() => setLintOpen(false)} />}
     </div>

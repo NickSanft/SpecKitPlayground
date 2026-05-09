@@ -6,6 +6,47 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [1.5.0] - 2026-05-09 — Phase 11: Search across docs
+
+### Added
+- **`src/utils/search.ts`** — pure case-insensitive substring search across the constitution and every feature's spec/plan/tasks. Returns `SearchResult[]` with the target `ActiveDocId` (so click-to-navigate is one `commitSetActiveDoc` call), a human label like `"spec.md — User Auth"`, the 1-based line number, and a snippet `{ before, match, after }` with `…` ellipses on long lines. Capped at 100 results to keep degenerate queries (single space, single letter) from flooding.
+- **`SearchPanel.tsx`** — modal opened by `⌘⇧F` (or `Ctrl+Shift+F`). Autofocused input, live results, mouse-hover and keyboard-arrow selection (↑/↓), Enter to open, Escape to close. Highlights the matched substring in each result with `<mark>`.
+- **Shortcut binding** added to `App.tsx` and exposed in the help modal alongside the others.
+
+### Why it matters
+Multi-feature workspaces grow fast — once you have 3+ features each with three docs, scanning the sidebar for a half-remembered phrase is friction the editor was originally designed to avoid. Search makes the workspace feel like one document at the keyboard while keeping the multi-doc structure on screen.
+
+### Architecture
+- The search runs synchronously on every keystroke; `useMemo` keys it on `[workspace, query]`. For typical workspace sizes (a few features × a few KB each) it's <1 ms; the 100-result cap protects against pathological inputs.
+- Substring not regex, deliberately. Regex is more powerful but more surprising for non-developers; can be added behind a toggle if requested.
+- `searchWorkspace` walks docs in a fixed order (constitution, then features by storage order, then doc kind in spec → plan → tasks). Result order is stable, which makes the keyboard-driven workflow predictable.
+- The panel's `aria-selected` mirrors the keyboard `activeIndex` so screen readers announce the active row.
+
+### UX details
+- The result list is a 3-column grid: target label (mono, muted), snippet (mono, with the match highlighted), line number (small, mono). Each row truncates with ellipses to keep the panel readable on narrow screens.
+- The hint line below the input cycles through three states: empty query → "Substring match, case-insensitive…", no matches → "No matches.", matches → "N matches" (or "100+" at the cap).
+- Hovering a result also moves the keyboard selection so mouse + keyboard agree on which row is "active".
+- The matched substring uses the same warning-tinted highlight as the lint diagnostic snippets, for visual consistency across panels.
+
+### Tests
+- Unit (Vitest, **168 passed**, +9): empty query → empty; single match in constitution; case-insensitive matching but original casing preserved in `snippet.match`; multi-doc results; multiple matches per line are emitted separately; no-match returns empty; result cap; long-line ellipsis behaviour; 1-based line numbering.
+- e2e (Playwright × Chromium + WebKit, **52 passed**, +1): edited spec contains a unique probe token; navigating away from that doc, opening the search panel via the keyboard shortcut, querying the token, and clicking the result navigates back to the spec.
+
+### Bundle
+- App JS: **241.9 KB brotli** (limit: 350 KB) — +0.7 KB for the search util and modal.
+- App CSS: **4.27 KB brotli** (limit: 20 KB) — +0.2 KB for the result-row grid and snippet highlight.
+- Lighthouse unchanged: 100 / 95 / 100 / 100.
+
+### Pre-push checklist
+- `tsc --noEmit` ✓
+- `eslint .` ✓
+- `prettier --check .` ✓
+- `vitest run` (168 passed) ✓
+- `vite build` ✓
+- `size-limit` (241.9 KB / 350 KB) ✓
+- `playwright test` × Chromium + WebKit (52 passed; Firefox runs in CI) ✓
+- `lhci autorun` ✓
+
 ## [1.4.0] - 2026-05-09 — Phase 10: Diff view
 
 ### Added

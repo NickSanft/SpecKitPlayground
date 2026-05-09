@@ -545,6 +545,40 @@ test('diff view highlights changes since baseline; mark baseline clears them', a
   await expect(page.locator('.diff-line-added')).toContainText('body two — edited');
 });
 
+test('search panel finds matches across docs and clicking a result navigates', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+
+  // Add a feature with content we can find by a unique token.
+  await page.getByRole('button', { name: '+ Add feature' }).click();
+  await page.locator('.modal-input').fill('Searchable');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await replaceEditorContent(page, '# Spec\n\nA UNIQUEPROBE token to find.');
+
+  // Open search and query.
+  await page.getByRole('button', { name: 'constitution.md' }).click();
+  await page.getByRole('button', { name: 'Show help' }).click();
+  // Use the keyboard shortcut from the help modal text — close it then trigger.
+  await page.getByRole('button', { name: 'Got it' }).click();
+
+  // Trigger Cmd/Ctrl+Shift+F via the running platform.
+  const isMacEmu = await page.evaluate(() => /Mac|iPhone|iPad|iPod/.test(navigator.platform));
+  const mod = isMacEmu ? 'Meta' : 'Control';
+  await page.keyboard.press(`${mod}+Shift+F`);
+
+  const dialog = page.getByRole('dialog', { name: 'Search workspace' });
+  await dialog.waitFor();
+
+  await page.locator('.search-input').fill('UNIQUEPROBE');
+  const results = page.locator('.search-result');
+  await expect(results.first()).toBeVisible();
+  await expect(results.first()).toContainText('spec.md — Searchable');
+
+  // Click the first result; we should land on that doc and the dialog closes.
+  await results.first().getByRole('option').click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator('.tree-leaf.is-active')).toContainText('spec.md');
+});
+
 test('raw HTML pasted into the editor is escaped, not rendered', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
   await replaceEditorContent(page, '<script>window.__pwned=true</script>');
