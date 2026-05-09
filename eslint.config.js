@@ -51,6 +51,7 @@ export default [
         history: 'readonly',
         URLSearchParams: 'readonly',
         DragEvent: 'readonly',
+        DataTransfer: 'readonly',
         File: 'readonly',
       },
     },
