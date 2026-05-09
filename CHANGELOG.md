@@ -6,6 +6,66 @@ All notable changes to Spec Kit Playground are tracked here. Format follows [Kee
 
 (empty)
 
+## [1.7.0] - 2026-05-09 — Phase 13: Polish bundle (capstone)
+
+**Final phase of the post-v1 roadmap.** Bundles features 6 + 7 from the original list (live "Saved Xs ago" ticker + print stylesheet) — both small, both pure polish, neither worth a phase on its own.
+
+### Added
+- **Global `nowTick` signal** in `src/core/tick.ts`. A single module-level `setInterval` updates it every 10 s. `SaveStatus` reads `nowTick.value` so the relative-time pill refreshes on a fixed cadence — no per-component `setInterval`, no per-second app-wide re-renders, just the one component subscribing to the one ticker.
+- **Print stylesheet** at `src/styles/print.css`. `@media print` rules:
+  - hide all chrome (header, sidebar, editor pane, mobile tabs, doc actions, banners, modals, save pip, lint pip)
+  - expand the preview pane to full page width with light-mode tokens overridden so the page prints clean even when the screen is in dark mode
+  - link `href` rendered in parentheses after the link text for paper-only context
+  - `page-break-after: avoid` on headings and `page-break-inside: avoid` on `pre`/`code`/`table` so blocks don't split awkwardly
+  - `@page { margin: 18mm 16mm }` for sane margins
+
+### Why it matters
+The ticker fixes a known limitation called out in the v0.5.0 changelog ("no live 'Saved Xs ago' ticker"). The print stylesheet is the seventh stretch goal from the original IMPLEMENTATION_PLAN.md §7 and turns Cmd+P into a useful path: produce a clean PDF of the active doc for offline review or sharing without zip overhead.
+
+### Architecture
+- **One global tick, not per-component intervals.** A per-component `useEffect`+`setInterval` would create one timer per visible relative-time element, all independently. The shared signal gives every subscriber the same wall-clock without that overhead.
+- **`Math.max(nowTick.value, Date.now())`** in `SaveStatus` so the displayed time never lags behind real wall-clock — if a save just landed and the tick hasn't yet fired, the component still shows "just now" rather than "stuck on 10s".
+- **Print stylesheet specificity.** Initially I tried `display: none` on `.pane-editor` plus `display: block` on `.pane`, but `.pane-editor` is also `.pane`, and `.pane` came later in source order so it won. Restructured to hide `.pane` (covers all) and explicitly re-show only `.pane-preview`. Pinned with the e2e test below.
+
+### UX details
+- The "Saved Xs ago" pill now actually changes from "just now" to "10s ago" to "20s ago" to "1m ago" without the user having to do anything. Small thing, but it stops feeling like the timestamp is frozen.
+- Print preview hides the lint pip and the changed-doc pip so the printed page is purely the doc content — no app state bleeds onto paper.
+- External links print with their URL appended in parentheses, so a printed spec is still a useful reference document.
+
+### Tests
+- Unit (Vitest, **176 passed**, no new tests). Live-ticker behaviour is timing-dependent and would require either a 10 s real wait or a mocked-clock setup; the formatting function `formatRelative` is still exercised indirectly via component render.
+- e2e (Playwright × Chromium + WebKit, **56 passed**, +1): `page.emulateMedia({ media: 'print' })` and assert that `.app-header`, `.pane-editor`, `.pane-sidebar` all compute `display: none` while `.preview-body` stays visible. Pins the specificity bug fix.
+
+### Bundle
+- App JS: **242.4 KB brotli** (limit: 350 KB) — unchanged in practice (the tick module is ~0.1 KB).
+- App CSS: **4.83 KB brotli** (limit: 20 KB) — +0.3 KB for the print stylesheet.
+- Lighthouse unchanged: 100 / 95 / 100 / 100.
+
+### Pre-push checklist
+- `tsc --noEmit` ✓
+- `eslint .` ✓ (added `getComputedStyle`, `setInterval`, `clearInterval` to globals)
+- `prettier --check .` ✓
+- `vitest run` (176 passed) ✓
+- `vite build` ✓
+- `size-limit` (242.4 KB / 350 KB) ✓
+- `playwright test` × Chromium + WebKit (56 passed; Firefox runs in CI) ✓
+- `lhci autorun` ✓
+
+### Roadmap closeout
+This phase closes the 10-feature post-v1 roadmap that began with v1.1.0:
+
+| | Phase | Version | Feature(s) |
+|---|---|---|---|
+| ✓ | 7 | v1.1.0 | Workspace identity (rename + multi-workspace) |
+| ✓ | 8 | v1.2.0 | URL sharing |
+| ✓ | 9 | v1.3.0 | Round-trip (import + combined-md export) |
+| ✓ | 10 | v1.4.0 | Diff view |
+| ✓ | 11 | v1.5.0 | Search across docs |
+| ✓ | 12 | v1.6.0 | Configurable rules |
+| ✓ | 13 | v1.7.0 | Live ticker + print stylesheet |
+
+Every phase landed CI-green, every minor was tagged only after CI confirmed, every CHANGELOG entry preserved the per-phase narrative. Bundle ended at 242.4 KB brotli — 69 % of the 350 KB budget, with 108 KB of headroom for whatever comes next.
+
 ## [1.6.0] - 2026-05-09 — Phase 12: Configurable lint rules
 
 ### Added

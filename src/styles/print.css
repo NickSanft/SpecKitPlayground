@@ -1,0 +1,106 @@
+/*
+ * Print stylesheet. The on-screen app is a three-pane editor; on paper
+ * we only want the rendered preview, full-width, with sober typography
+ * and no app chrome.
+ */
+
+@media print {
+  :root {
+    color-scheme: light;
+    --bg: #ffffff;
+    --bg-elevated: #ffffff;
+    --bg-subtle: #ffffff;
+    --fg: #111111;
+    --fg-muted: #333333;
+    --fg-subtle: #555555;
+    --border: #cccccc;
+    --border-strong: #999999;
+  }
+
+  body,
+  #app,
+  .app-shell,
+  .app-main {
+    background: #ffffff !important;
+    color: #111111 !important;
+  }
+
+  .app-header,
+  .mobile-tabs,
+  .doc-actions,
+  .first-run-banner,
+  .import-banner,
+  .drop-overlay,
+  .drop-error,
+  .modal-backdrop,
+  .save-status,
+  .changed-pip,
+  .pane {
+    display: none !important;
+  }
+
+  .app-shell {
+    display: block !important;
+    height: auto !important;
+  }
+
+  .app-main {
+    display: block !important;
+    grid-template-columns: none !important;
+  }
+
+  .pane-preview {
+    display: block !important;
+    overflow: visible !important;
+    border: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .preview-body {
+    max-width: 100% !important;
+    padding: 0 !important;
+    color: #111111 !important;
+    font-size: 11pt;
+    line-height: 1.55;
+  }
+
+  .preview-body h1,
+  .preview-body h2,
+  .preview-body h3,
+  .preview-body h4 {
+    color: #111111 !important;
+    page-break-after: avoid;
+  }
+
+  .preview-body pre,
+  .preview-body code {
+    background: #f5f5f5 !important;
+    border-color: #cccccc !important;
+    color: #111111 !important;
+    page-break-inside: avoid;
+  }
+
+  .preview-body a {
+    color: inherit !important;
+    text-decoration: underline;
+  }
+
+  .preview-body a[href^='http']::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.85em;
+    color: #555555;
+  }
+
+  .preview-body blockquote {
+    color: #333333 !important;
+    border-left-color: #999999 !important;
+  }
+
+  .preview-body table {
+    page-break-inside: avoid;
+  }
+
+  @page {
+    margin: 18mm 16mm;
+  }
+}

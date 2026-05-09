@@ -53,6 +53,9 @@ export default [
         DragEvent: 'readonly',
         DataTransfer: 'readonly',
         File: 'readonly',
+        getComputedStyle: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
       },
     },
     plugins: {

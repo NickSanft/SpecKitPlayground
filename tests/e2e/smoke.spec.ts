@@ -618,6 +618,40 @@ test('disabling a lint rule via Configure removes its diagnostics + drops the pi
   await expect(page.locator('.lint-pip')).toHaveText(String(initialPip - 1));
 });
 
+test('print stylesheet hides chrome and shows only the preview', async ({ page }) => {
+  await page.goto('/SpecKitPlayground/');
+  // Sanity: in screen mode the chrome is visible.
+  await expect(page.locator('.app-header')).toBeVisible();
+  await expect(page.locator('.pane-editor')).toBeVisible();
+
+  await page.emulateMedia({ media: 'print' });
+
+  // Chrome is hidden via display: none in @media print.
+  const headerHidden = await page
+    .locator('.app-header')
+    .evaluate((el) => getComputedStyle(el).display === 'none');
+  expect(headerHidden).toBe(true);
+
+  const editorHidden = await page
+    .locator('.pane-editor')
+    .evaluate((el) => getComputedStyle(el).display === 'none');
+  expect(editorHidden).toBe(true);
+
+  const sidebarHidden = await page
+    .locator('.pane-sidebar')
+    .evaluate((el) => getComputedStyle(el).display === 'none');
+  expect(sidebarHidden).toBe(true);
+
+  // Preview body still renders.
+  const previewVisible = await page
+    .locator('.preview-body')
+    .evaluate((el) => getComputedStyle(el).display !== 'none');
+  expect(previewVisible).toBe(true);
+
+  // Reset for following tests in this worker (although Playwright spins fresh contexts anyway).
+  await page.emulateMedia({ media: 'screen' });
+});
+
 test('raw HTML pasted into the editor is escaped, not rendered', async ({ page }) => {
   await page.goto('/SpecKitPlayground/');
   await replaceEditorContent(page, '<script>window.__pwned=true</script>');

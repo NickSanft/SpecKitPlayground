@@ -1,4 +1,5 @@
 import { lastSavedAt, saveStatus } from '../core/state';
+import { nowTick } from '../core/tick';
 
 function formatRelative(at: number, now: number): string {
   const seconds = Math.max(0, Math.floor((now - at) / 1000));
@@ -22,9 +23,12 @@ export function SaveStatus() {
     );
   }
   if (status === 'saved' && at !== null) {
+    // Reading nowTick.value subscribes this component to the global ticker
+    // so the relative time refreshes without per-component setInterval.
+    const now = Math.max(nowTick.value, Date.now());
     return (
       <span class="save-status save-status-saved" aria-live="polite" data-status="saved">
-        Saved {formatRelative(at, Date.now())}
+        Saved {formatRelative(at, now)}
       </span>
     );
   }
